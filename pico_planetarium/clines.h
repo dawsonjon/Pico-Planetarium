@@ -10,7 +10,7 @@ struct s_cline {
   float dec2;
 };
 
-extern s_cline clines[];
+extern const s_cline clines[];
 extern const uint16_t num_clines;
 
 #endif

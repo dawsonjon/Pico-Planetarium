@@ -2,7 +2,7 @@
 
 #include "constellations.h"
 
-const char* const constellation_short_names[] = {
+const char* const  constellation_short_names[] = {
 "Hya", "Vir", "UMa", "Cet", "Her", "Eri", "Peg", "Dra", "Cen", "Aqr", "Oph", "Leo", "Boo",
 "Psc", "Sgr", "Cyg", "Tau", "Cam", "And", "Pup", "Aur", "Aql", "Ser", "Per", "Cas", "Ori",
 "Cep", "Lyn", "Lib", "Gem", "Cnc", "Vel", "Sco", "Car", "Mon", "Scl", "Phe", "CVn", "Ari",

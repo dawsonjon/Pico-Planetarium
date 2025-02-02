@@ -10,7 +10,7 @@ struct s_star {
   uint8_t mk;
 };
 
-extern s_star stars[];
+extern const s_star stars[];
 extern const uint16_t num_stars;
 
 #endif

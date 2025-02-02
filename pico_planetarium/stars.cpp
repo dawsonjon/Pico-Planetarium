@@ -1,7 +1,7 @@
 
 #include "stars.h"
 const uint16_t num_stars = 9096;
-s_star stars[num_stars] = {
+const s_star stars[num_stars] = {
 {1.2912500f, 45.2291667f, 6.7000000f, 21},
 {1.2658333f, 0.5030556f, 6.2900000f, 49},
 {1.3337500f, -4.2925000f, 4.6100000f, 50},

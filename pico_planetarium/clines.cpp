@@ -1,7 +1,7 @@
 
 #include "clines.h"
 const uint16_t num_clines = 750;
-s_cline clines[num_clines] = {
+const s_cline clines[] = {
 {354.3912500f, 46.4580556f, 355.1020833f, 44.3338889f},
 {355.1020833f, 44.3338889f, 354.5341667f, 43.2680556f},
 {354.5341667f, 43.2680556f, 345.4804167f, 42.3261111f},
