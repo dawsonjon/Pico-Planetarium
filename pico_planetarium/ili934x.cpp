@@ -313,7 +313,9 @@ void ILI934X::_data(uint8_t *data, size_t dataLen)
     sleep_us(1);
     gpio_put(_cs, 0);
     sleep_us(1);
+    
     spi_write_blocking(_spi, data, dataLen);
+    
     sleep_us(2);
     gpio_put(_cs, 1);
 
@@ -331,7 +333,12 @@ void ILI934X::_writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, ui
     buffer[1] = __builtin_bswap16(y1);
 
     _write(_PASET, (uint8_t *)buffer, 4);
+    
+
+
     _write(_RAMWR, data, dataLen);
+    
+
 }
 
 uint16_t ILI934X::colour565(uint8_t r, uint8_t g, uint8_t b)

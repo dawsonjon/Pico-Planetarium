@@ -37,7 +37,7 @@ s_observer observer =
   .field              = 90.0f,   //float field of view in degrees 
   .alt                = 45.0f,   //float altidute in degrees
   .az                 = 180.0f,  //float azimuth in degrees
-  .smallest_magnitude = 6.0f,    //float smallest magnitude star to plot
+  .smallest_magnitude = 8.0f,    //float smallest magnitude star to plot
   
   .latitude           = 51.0,//float latitude - latitude in degrees
   .longitude          = 0.0,  //float longitude - longitude in degrees
@@ -56,10 +56,10 @@ void setup() {
   datetime_t t = {
             .year  = 2025,
             .month = 2,
-            .day   = 1,
+            .day   = 3,
             .dotw  = 6, // 0 is Sunday
-            .hour  = 20,
-            .min   = 37,
+            .hour  = 19,
+            .min   = 52,
             .sec   = 00
   };
 
@@ -71,7 +71,7 @@ void setup() {
 
 void loop()
 {
-  //static uint8_t hour = 0;
+  static uint16_t hour = 0;
 
   //get time
   datetime_t t;
@@ -87,15 +87,15 @@ void loop()
   //observer.min   = 0; 
   //observer.sec   = 0;
 
-  planetarium.update(observer);
-
   Serial.println("Updating");
-  uint32_t z=0;
-  for(uint16_t y=0;y<240; ++y)
-  {
-    display->writeHLine(0, y, 320, buffer[y]);
-    z+=320;
-  } 
+  
+  uint32_t start = micros();
+  planetarium.update(observer);
+  uint32_t elapsed = micros()-start;
+  
+  Serial.println(elapsed/1000);
+  display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)buffer, width*height*2);
+
   
   //sleep_ms(1000);
 
