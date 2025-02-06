@@ -37,7 +37,7 @@ s_observer observer =
   .field              = 90.0f,   //float field of view in degrees 
   .alt                = 45.0f,   //float altidute in degrees
   .az                 = 180.0f,  //float azimuth in degrees
-  .smallest_magnitude = 8.0f,    //float smallest magnitude star to plot
+  .smallest_magnitude = 5.0f,    //float smallest magnitude star to plot
   
   .latitude           = 51.0,//float latitude - latitude in degrees
   .longitude          = 0.0,  //float longitude - longitude in degrees
@@ -87,8 +87,11 @@ void loop()
   //observer.min   = 0; 
   //observer.sec   = 0;
 
+  observer.hour = hour;
+  hour += 1;
+  if(hour > 24) hour -= 24;
+
   Serial.println("Updating");
-  
   uint32_t start = micros();
   planetarium.update(observer);
   uint32_t elapsed = micros()-start;

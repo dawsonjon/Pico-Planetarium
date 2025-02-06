@@ -107,6 +107,25 @@ uint16_t c_planetarium::colour565(uint8_t r, uint8_t g, uint8_t b)
     return (val >> 8) | (val << 8);
 }
 
+void c_planetarium::colour_rgb(uint16_t colour_565, uint8_t &r, uint8_t &g, uint8_t &b)
+{
+    colour_565 = (colour_565 >> 8) | (colour_565 << 8);
+    r = ((colour_565 >> 11) & 0x1f) << 3;
+    g = ((colour_565 >> 5) & 0x3f) << 2;
+    b = (colour_565 & 0x1f) << 3;
+}
+
+uint16_t c_planetarium::colour_scale(uint16_t colour, float scale)
+{
+    uint8_t r, g, b;
+    colour_rgb(colour, r, g, b);
+    r=std::min(r*scale, 255.0f);
+    g=std::min(g*scale, 255.0f);
+    b=std::min(b*scale, 255.0f);
+    return colour565(r, g, b);
+}
+
+
 void c_planetarium :: update(s_observer o)
 {
   observer = o;
@@ -204,18 +223,35 @@ void c_planetarium :: ra_dec_to_alt_az(float ra, float dec, float &alt, float &a
     }
 }
 
-void c_planetarium :: calculate_view(float alt, float az, float &x, float &y)
+void c_planetarium :: calculate_view(float alt, float az, float &x, float &y, float &z)
 {
+  //rotate so that observer az is at bottom of screen
+  az -= observer.az;
+
   //make zenith 0 on the x and y axis 
-  x = (90.0-alt) * sin(to_radians(az-observer.az));
-  y = (90.0-alt) * -cos(to_radians(az-observer.az)) + (90.0f-observer.alt);
+  x = cos(to_radians(alt))*sin(to_radians(az));
+  y = cos(to_radians(alt))*-cos(to_radians(az));
+  z = sin(to_radians(alt));
+
+  //rotate around equinox
+  float theta = -(90-observer.alt);
+  float new_y = y*cos(to_radians(theta))-z*sin(to_radians(theta));
+  float new_z = y*sin(to_radians(theta))+z*cos(to_radians(theta));
+  z = new_z;
+  y = new_y;
+
+
+  //0 is centre of view, +0.5 is at the top, -0.5 is at the bottom
+  x /= 2.0f*sin(to_radians(observer.field/2));
+  y /= 2.0f*sin(to_radians(observer.field/2)); 
+  z /= 2.0f*sin(to_radians(observer.field/2)); 
 
 }
 
 void c_planetarium :: calculate_pixel_coords(float &x, float &y)
 {
-  x = round(width * (x/observer.field+0.5f));
-  y = round(height * (1.0f-(y/observer.field + 0.5f)));
+  x = round(width * (x+0.5f));
+  y = round(height * (1.0f-(y + 0.5f)));
 }
 
 void c_planetarium :: plot_constellations()
@@ -229,16 +265,20 @@ void c_planetarium :: plot_constellations()
     float alt2, az2;
     ra_dec_to_alt_az(clines[idx].ra2, clines[idx].dec2, alt2, az2);
 
-    float x1, y1;
-    calculate_view(alt1, az1, x1, y1);
+    float x1, y1, z1;
+    calculate_view(alt1, az1, x1, y1, z1);
 
-    float x2, y2;
-    calculate_view(alt2, az2, x2, y2);
+    float x2, y2, z2;
+    calculate_view(alt2, az2, x2, y2, z2);
 
-    //don't bother plotting stars outside field of observer
+    if(z1 < 0.0f || z2 < 0.0f) continue;
+
+    //don't bother plotting line outside field of observer
     bool draw = 
-    ((x1 < observer.field/2) && (x1 > -observer.field/2) && (y1 < observer.field/2) && (y1 > -observer.field/2)) ||
-    ((x2 < observer.field/2) && (x2 > -observer.field/2) && (y2 < observer.field/2) && (y2 > -observer.field/2));
+    (abs(x1) < 0.5f) &&
+    (abs(y1) < 0.5f) &&
+    (abs(x2) < 0.5f) &&
+    (abs(y2) < 0.5f);
     if(!draw) continue;
 
     calculate_pixel_coords(x1, y1);
@@ -276,14 +316,13 @@ void c_planetarium :: plot_stars()
     float alt, az;
     ra_dec_to_alt_az(stars[idx].ra, stars[idx].dec, alt, az);
 
-    float x, y;
-    calculate_view(alt, az, x, y);
+    float x, y, z;
+    calculate_view(alt, az, x, y, z);
 
     //don't bother plotting stars outside field of observer
-    if(x > observer.field/2) continue;
-    if(x < -observer.field/2) continue;
-    if(y > observer.field/2) continue;
-    if(y < -observer.field/2) continue;
+    if(abs(x)>0.5) continue;
+    if(abs(y)>0.5) continue;
+    if(z < 0) continue;
 
     //get coordinated and magnitude of x
     calculate_pixel_coords(x, y);
@@ -292,6 +331,7 @@ void c_planetarium :: plot_stars()
 
     if(mag <= 1)
     {
+      //fill_circle(x, y, 8, star_colour(mk, 4));
       fill_circle(x, y, 3, star_colour(mk, 3));
       fill_circle(x, y, 2, star_colour(mk, 1));
     }
@@ -331,14 +371,12 @@ void c_planetarium :: plot_planets()
     float alt, az;
     ra_dec_to_alt_az(ra, dec, alt, az);
 
-    float x, y;
-    calculate_view(alt, az, x, y);
+    float x, y, z;
+    calculate_view(alt, az, x, y, z);
 
     //don't bother plotting stars outside field of observer
-    if(x > observer.field/2) continue;
-    if(x < -observer.field/2) continue;
-    if(y > observer.field/2) continue;
-    if(y < -observer.field/2) continue;
+    if(z < 0.0f) continue;
+    if(x*x + y*y > 0.5) continue;
 
     //get coordinated and magnitude of x
     calculate_pixel_coords(x, y);
@@ -356,7 +394,10 @@ void c_planetarium :: plot_planets()
     };
 
     uint16_t colour = colours[idx];
-    fill_circle(x, y, 4, colour);
+    fill_circle(x, y, 4, colour_scale(colour, 0.2));
+    fill_circle(x-1, y-1, 3, colour_scale(colour, 0.5));
+    fill_circle(x-1, y-1, 2, colour_scale(colour, 0.75));
+    fill_circle(x-1, y-1, 1, colour_scale(colour, 1.0));
     draw_string(x+4, y-16, font_8x5, planet_names[idx], colour565(223, 136, 247));
 
   }
@@ -370,14 +411,13 @@ void c_planetarium :: plot_constellation_names()
     float alt, az;
     ra_dec_to_alt_az(constellation_centres[idx].ra*15, constellation_centres[idx].dec, alt, az);
 
-    float x, y;
-    calculate_view(alt, az, x, y);
+    float x, y, z;
+    calculate_view(alt, az, x, y, z);
 
-    if((x < observer.field/2) && (x > -observer.field/2) && (y < observer.field/2) && (y > -observer.field/2))
-    {
-      calculate_pixel_coords(x, y);
-      draw_string(x, y, font_8x5, constellation_names[idx], colour565(136, 247, 225));
-    }
+    if(abs(x) > 0.5 || abs(y) > 0.5) continue;
+    if(z < 0) continue;
+    calculate_pixel_coords(x, y);
+    draw_string(x, y, font_8x5, constellation_names[idx], colour565(136, 247, 225));
     
   }
 }

@@ -58,7 +58,7 @@ class c_planetarium
   inline float to_degrees(float x);
   void ra_dec_to_alt_az(float ra, float dec, float &alt, float &az);
   void alt_az_to_ra_dec(float alt, float az, float &ra, float &dec);
-  void calculate_view(float alt, float az, float &x, float &y);
+  void calculate_view(float alt, float az, float &x, float &y, float &z);
   void calculate_pixel_coords(float &x, float &y);
   void plot_constellations();
   void plot_stars();
@@ -68,6 +68,8 @@ class c_planetarium
   void local_sidereal_time();
   uint16_t star_colour(float mk, uint8_t mag);
   uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
+  void colour_rgb(uint16_t colour_565, uint8_t &r, uint8_t &g, uint8_t &b);
+  uint16_t colour_scale(uint16_t colour, float scale);
 
   void set_pixel(uint16_t x, uint16_t y, uint16_t colour);
   void fill_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour);
