@@ -1,5 +1,6 @@
 #include "clines.h"
 #include "planetarium.h"
+#include "splash_320x240.h"
 
 #include "hardware/rtc.h"
 #include "pico/stdlib.h"
@@ -34,10 +35,10 @@
 
 s_observer observer =
 {
-  .field              = 90.0f,   //float field of view in degrees 
-  .alt                = 45.0f,   //float altidute in degrees
-  .az                 = 180.0f,  //float azimuth in degrees
-  .smallest_magnitude = 5.0f,    //float smallest magnitude star to plot
+  .field              = 60.0f,   //float field of view in degrees 
+  .alt                = 20.0f,   //float altidute in degrees
+  .az                 = 160.0f,  //float azimuth in degrees
+  .smallest_magnitude = 6.0f,    //float smallest magnitude star to plot
   
   .latitude           = 51.0,//float latitude - latitude in degrees
   .longitude          = 0.0,  //float longitude - longitude in degrees
@@ -57,7 +58,7 @@ void setup() {
             .year  = 2025,
             .month = 2,
             .day   = 3,
-            .dotw  = 6, // 0 is Sunday
+            .dotw  = 0, // is Sunday
             .hour  = 19,
             .min   = 52,
             .sec   = 00
@@ -66,6 +67,10 @@ void setup() {
   // Start the RTC
   rtc_init();
   rtc_set_datetime(&t);
+
+  //Show splash screen
+  display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)splash_320x240, width*height*2);
+  sleep_ms(3000);
 }
 
 
@@ -87,7 +92,7 @@ void loop()
   //observer.min   = 0; 
   //observer.sec   = 0;
 
-  observer.hour = hour;
+  //observer.hour = hour;
   hour += 1;
   if(hour > 24) hour -= 24;
 

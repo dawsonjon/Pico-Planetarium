@@ -61,22 +61,31 @@ class c_planetarium
   void calculate_view(float alt, float az, float &x, float &y, float &z);
   void calculate_pixel_coords(float &x, float &y);
   void plot_constellations();
+  void plot_planes();
   void plot_stars();
   void plot_planets();
   void plot_constellation_names();
+  void plot_cardinal_points();
+  void plot_plane(float pole_alt, float pole_az, uint16_t colour);
+  void plot_alt_az_grid(uint16_t colour);
+  void plot_ra_dec_grid(uint16_t colour);
+  void plot_milky_way();
   float greenwich_sidereal_time();
   void local_sidereal_time();
   uint16_t star_colour(float mk, uint8_t mag);
+
+
   uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
   void colour_rgb(uint16_t colour_565, uint8_t &r, uint8_t &g, uint8_t &b);
-  uint16_t colour_scale(uint16_t colour, float scale);
-
-  void set_pixel(uint16_t x, uint16_t y, uint16_t colour);
-  void fill_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour);
-  void draw_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour);
-  void draw_string(uint16_t x, uint16_t y, const uint8_t *font, const char *s, uint16_t fg);
-  void draw_char(uint16_t x, uint16_t y, const uint8_t *font, char c, uint16_t fg);
-  void fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour);
+  uint16_t colour_scale(uint16_t colour, uint16_t alpha=256);
+  uint16_t alpha_blend(uint16_t old_colour, uint16_t colour, uint16_t alpha);
+  void set_pixel(uint16_t x, uint16_t y, uint16_t colour, uint16_t alpha=256);
+  void draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t colour, uint16_t alpha=256);
+  void fill_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha=256);
+  void draw_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha=256);
+  void draw_string(uint16_t x, uint16_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t alpha=256);
+  void draw_char(uint16_t x, uint16_t y, const uint8_t *font, char c, uint16_t fg, uint16_t alpha=256);
+  void fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha=256);
   double solve_kepler(double M, double e, double E);
   void convert_to_ra_dec(double x, double y, double z, double &ra, double &dec);
   void compute_planet_position(double jd, s_keplarian elements, s_keplarian rates, s_extra_terms extra_terms, double &x, double &y, double &z);
