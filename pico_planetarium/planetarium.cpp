@@ -9,7 +9,7 @@
 #include "font_16x12.h"
 #include "Arduino.h"
 
-#include "pico.h"
+#include "pico/stdlib.h"
 
 uint16_t buffer[height][width] = {};
 const char * const planet_names[]={"Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","Sun"};
@@ -179,14 +179,22 @@ void c_planetarium :: update(s_observer o)
   local_sidereal_time();
   fill_rect(0, 0, width, height, colour565(5, 0, 50));
 
-  plot_milky_way(); //79ms
-  plot_alt_az_grid(colour565(255, 255, 255)); //200ms
-  plot_ra_dec_grid(colour565(255, 0, 128)); //387ms
-  plot_planes(); //63ms
-  plot_constellations(); //215ms
-  plot_stars(); //630ms
-  plot_planets(); //10ms
-  plot_constellation_names(); //14ms
+  //calculate constants related to observer view
+  sin_lat = sin(to_radians(observer.latitude));
+  cos_lat = cos(to_radians(observer.latitude));
+  view_scale = 1.0f/(2.0f*sin(to_radians(observer.field/2.0f)));
+  const float theta = -(90-observer.alt);
+  sin_theta = sin(to_radians(theta));
+  cos_theta = cos(to_radians(theta));
+
+  plot_milky_way(); //66ms
+  plot_alt_az_grid(colour565(255, 255, 255)); //107ms
+  plot_ra_dec_grid(colour565(255, 0, 128)); //243ms
+  plot_planes(); //38ms
+  plot_constellations(); //133ms
+  plot_stars(); //452ms
+  plot_planets(); //3ms
+  plot_constellation_names(); //9ms
 
   //obscure the area bellow the horizon
   uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
@@ -196,26 +204,26 @@ void c_planetarium :: update(s_observer o)
 
 
   //draw skyline
-  //int max_y = observer.alt>89.0f?height/2:0;
-  //for (int y = -height/2; y <= max_y; y++) {
-  //    for (int x = -width/2; x <= width/2; x++) {
-  //        if (((float)x * x) * ((float)b * b) + ((float)y * y) * ((float)a * a) > ((float)a * a) * ((float)b * b)) {
-  //            set_pixel(width/2 + x, height/2 - y, colour565(0, 0, 0), 200);
-  //        }
-  //    }
-  //}
+  int max_y = observer.alt>89.0f?height/2:0;
+  for (int y = -height/2; y <= max_y; y++) {
+      for (int x = -width/2; x <= width/2; x++) {
+          if (((float)x * x) * ((float)b * b) + ((float)y * y) * ((float)a * a) > ((float)a * a) * ((float)b * b)) {
+              set_pixel(width/2 + x, height/2 - y, colour565(0, 0, 0), 200);
+          }
+      }
+  }
 
-  //int min_y = observer.alt>89.0f?-height/2:0;
-  //for (int y = min_y; y <= height/2; y++) {
-  //  for (int x = -width/2; x < width/2; x++) {
-  //    uint16_t from_x = 240.0f + (x*240.0f/view_major_radius);
-  //    uint16_t from_y = 240.0f + (y*240.0f/view_minor_radius);
-  //    if(from_x < 480 && from_y < 480 && skyline[from_x * 480 + from_y] != 0xffff)
-  //    {
-  //      set_pixel(width/2 + x, height/2 + y, colour565(0, 0, 0), 200);
-  //    }
-  //  }
-  //}
+  int min_y = observer.alt>89.0f?-height/2:0;
+  for (int y = min_y; y <= height/2; y++) {
+    for (int x = -width/2; x < width/2; x++) {
+      uint16_t from_x = 240.0f + (x*240.0f/view_major_radius);
+      uint16_t from_y = 240.0f + (y*240.0f/view_minor_radius);
+      if(from_x < 480 && from_y < 480 && skyline[from_x * 480 + from_y] != 0xffff)
+      {
+        set_pixel(width/2 + x, height/2 + y, colour565(0, 0, 0), 200);
+      }
+    }
+  }
 
   plot_cardinal_points();
 
@@ -257,50 +265,44 @@ inline float c_planetarium :: to_degrees(float x)
 void c_planetarium :: alt_az_to_ra_dec(float alt, float az, float &ra, float &dec)
 {
     // Convert degrees to radians
-    alt = to_radians(alt);
-    az = to_radians(az);
-    float lat = to_radians(observer.latitude);
+    const float sin_alt = sinf(to_radians(alt));
+    const float cos_alt = cosf(to_radians(alt));
+    const float sin_az = sinf(to_radians(az));
+    const float cos_az = cosf(to_radians(az));
     
     // Compute declination
-    dec = asin(sin(alt) * sin(lat) + cos(alt) * cos(lat) * cos(az));
+    dec = asinf(sin_alt * sin_lat + cos_alt * cos_lat * cos_az);
     
     // Compute hour angle
-    float ha = atan2(-sin(az) * cos(alt), cos(lat) * sin(alt) - sin(lat) * cos(alt) * cos(az));
+    float ha = atan2f(-sin_az * cos_alt, cos_lat * sin_alt - sin_lat * cos_alt * cos_az);
     
     // Convert hour angle to right ascension
     ra = lst - to_degrees(ha);
-    if (ra < 0) ra += 360.0;
-    if (ra >= 360.0) ra -= 360.0;
+    if (ra < 0) ra += 360.0f;
+    if (ra >= 360.0f) ra -= 360.0f;
     
     // Convert declination back to degrees
     dec = to_degrees(dec);
 
 }
 
-void c_planetarium :: ra_dec_to_alt_az(float ra, float dec, float &alt, float &az)
+void inline c_planetarium :: ra_dec_to_alt_az(float ra, float dec, float &alt, float &az)
 {
     float H=(lst - ra);
 
-    if(H<0.0f)
-    {
-      H+=360.0f;
-    }
+    if(H<0.0f) H+=360.0f;
+    if(H>180.0f) H=H-360.0f;
+    
+    const float sin_H = sin(to_radians(H));
+    const float cos_H = cos(to_radians(H));
+    const float tan_dec = tan(to_radians(dec));
+    const float sin_dec = sin(to_radians(dec));
+    const float cos_dec = cos(to_radians(dec));
 
-    if(H>180.0f)
-    {
-      H=H-360.0f;
-    }
-
-    az = to_degrees(
-      atan2(sin(to_radians(H)), 
-      cos(to_radians(H))*sin(to_radians(observer.latitude)) - tan(to_radians(dec))*cos(to_radians(observer.latitude))));
-    alt = to_degrees(asin(sin(to_radians(observer.latitude))*sin(to_radians(dec)) + cos(to_radians(observer.latitude))*cos(to_radians(dec))*cos(to_radians(H))));
+    az = to_degrees(atan2(sin_H, cos_H*sin_lat - tan_dec*cos_lat));
+    alt = to_degrees(asin(sin_lat*sin_dec + cos_lat*cos_dec*cos_H));
     az-=180.0f;
-
-    if(az<0)
-    {
-      az+=360.0f;
-    }
+    if(az<0.0f) az+=360.0f;
 }
 
 void c_planetarium :: calculate_view(float alt, float az, float &x, float &y, float &z)
@@ -308,24 +310,33 @@ void c_planetarium :: calculate_view(float alt, float az, float &x, float &y, fl
   //rotate so that observer az is at bottom of screen
   az -= observer.az;
 
-  //make zenith 0 on the x and y axis 
-  x = cos(to_radians(alt))*sin(to_radians(az));
-  y = cos(to_radians(alt))*-cos(to_radians(az));
-  z = sin(to_radians(alt));
+  //make zenith 0 on the x and y axis
+  const float sin_alt = sin(to_radians(alt));
+  const float cos_alt = cos(to_radians(alt));
+  const float sin_az = sin(to_radians(az));
+  const float cos_az = cos(to_radians(az));
+  x = cos_alt*sin_az;
+  y = cos_alt*-cos_az;
+  z = sin_alt;
 
   //rotate around equinox
-  float theta = -(90-observer.alt);
-  float new_y = y*cos(to_radians(theta))-z*sin(to_radians(theta));
-  float new_z = y*sin(to_radians(theta))+z*cos(to_radians(theta));
+  const float new_y = y*cos_theta-z*sin_theta;
+  const float new_z = y*sin_theta+z*cos_theta;
   z = new_z;
   y = new_y;
 
-
   //0 is centre of view, +0.5 is at the top, -0.5 is at the bottom
-  x /= 2.0f*sin(to_radians(observer.field/2));
-  y /= 2.0f*sin(to_radians(observer.field/2)); 
-  z /= 2.0f*sin(to_radians(observer.field/2)); 
+  x *= view_scale;
+  y *= view_scale; 
+  z *= view_scale;
 
+}
+
+void inline c_planetarium :: calculate_view_ra_dec(float ra, float dec, float &x, float &y, float &z)
+{
+  float alt, az;
+  ra_dec_to_alt_az(ra, dec, alt, az);
+  calculate_view(alt, az, x, y, z);
 }
 
 void c_planetarium :: calculate_pixel_coords(float &x, float &y)
@@ -401,7 +412,7 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
   {
   
     float x1, y1, z1, alt, az1;
-    ra_dec_to_alt_az(0, dec, alt, az1);
+    ra_dec_to_alt_az(0.0f, dec, alt, az1);
     calculate_view(alt, az1, x1, y1, z1);
     calculate_pixel_coords(x1, y1);
 
@@ -439,7 +450,7 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
     {
       float x2, y2, z2, alt;
       ra_dec_to_alt_az(ra, dec, alt, az);
-      if(dec == 90) az = 0;
+      if(dec == 90u) az = 0;
       calculate_view(alt, az, x2, y2, z2);
       calculate_pixel_coords(x2, y2);
   
@@ -623,12 +634,14 @@ void c_planetarium :: plot_stars()
     const float dec_seperation = abs(view_dec - stars[idx].dec);
     if(abs(view_dec - stars[idx].dec) > observer.field) continue;
 
-    float alt, az;
-    ra_dec_to_alt_az(stars[idx].ra, stars[idx].dec, alt, az);
+    //uint32_t t0 = micros();
 
     float x, y, z;
-    calculate_view(alt, az, x, y, z);
+    calculate_view_ra_dec(stars[idx].ra, stars[idx].dec, x, y, z);
     calculate_pixel_coords(x, y);
+
+    //Serial.print("calculating2: ");
+    //Serial.println(micros()-t0);
 
     //don't bother plotting stars outside field of observer
     if(x>width) continue;
@@ -641,6 +654,7 @@ void c_planetarium :: plot_stars()
     int8_t mag = stars[idx].mag;
     uint8_t mk = stars[idx].mk;
 
+    //t0 = micros();
     if(mag <= 1)
     {
       fill_circle(x, y, 6, star_colour(mk, 1), 9);
@@ -660,7 +674,9 @@ void c_planetarium :: plot_stars()
     else
     {
       set_pixel(x, y, star_colour(mk, mag-3));
-    } 
+    }
+    //Serial.print("plotting: ");
+    //Serial.println(micros()-t0);
 
   }
 }
@@ -721,12 +737,12 @@ void c_planetarium :: plot_constellation_names()
   {
 
     float alt, az;
-    ra_dec_to_alt_az(constellation_centres[idx].ra*15, constellation_centres[idx].dec, alt, az);
+    ra_dec_to_alt_az(constellation_centres[idx].ra*15.0f, constellation_centres[idx].dec, alt, az);
 
     float x, y, z;
     calculate_view(alt, az, x, y, z);
 
-    if(abs(x) > 0.5 || abs(y) > 0.5) continue;
+    if(abs(x) > 0.5f || abs(y) > 0.5f) continue;
     if(z < 0) continue;
     calculate_pixel_coords(x, y);
     draw_string(x, y, font_8x5, constellation_names[idx], colour565(136, 247, 225));

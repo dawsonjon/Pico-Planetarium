@@ -53,11 +53,15 @@ class c_planetarium
   s_observer observer;
   float lst; //calculated from utc
   double julian_date; //calculated from utc
+  float sin_lat, cos_lat;
+  float view_scale;
+  float cos_theta, sin_theta;
 
   inline float to_radians(float x);
   inline float to_degrees(float x);
   void ra_dec_to_alt_az(float ra, float dec, float &alt, float &az);
   void alt_az_to_ra_dec(float alt, float az, float &ra, float &dec);
+  void calculate_view_ra_dec(float ra, float dec, float &x, float &y, float &z);
   void calculate_view(float alt, float az, float &x, float &y, float &z);
   void calculate_pixel_coords(float &x, float &y);
   void plot_constellations();

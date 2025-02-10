@@ -2,7 +2,7 @@
 #include "planetarium.h"
 #include "splash_320x240.h"
 
-#include "hardware/rtc.h"
+#include "time.h"
 #include "pico/stdlib.h"
 #include "pico/util/datetime.h"
 
@@ -54,23 +54,20 @@ void setup() {
   Serial.println("github: https://github.com/dawsonjon/101Things");
   Serial.println("docs: 101-things.readthedocs.io");
 
-  datetime_t t = {
-            .year  = 2025,
-            .month = 2,
-            .day   = 3,
-            .dotw  = 0, // is Sunday
-            .hour  = 19,
-            .min   = 52,
-            .sec   = 00
-  };
-
-  // Start the RTC
-  rtc_init();
-  rtc_set_datetime(&t);
+  //start clock
+  tm timeinfo;
+  timeinfo.tm_year = 2025;
+  timeinfo.tm_mon = 2;
+  timeinfo.tm_mday = 3;
+  timeinfo.tm_hour = 19;
+  timeinfo.tm_min = 52;
+  timeinfo.tm_sec = 0;
+  timeval tv = {.tv_sec = mktime(&timeinfo)};
+  settimeofday(&tv, NULL);
 
   //Show splash screen
   display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)splash_320x240, width*height*2);
-  sleep_ms(3000);
+  sleep_ms(2000);
 }
 
 
@@ -79,22 +76,15 @@ void loop()
   static uint16_t hour = 0;
 
   //get time
-  datetime_t t;
-  rtc_get_datetime(&t);
-  observer.year  = t.year;
-  observer.month = t.month; 
-  observer.day   = t.day;
-  observer.hour  = t.hour; 
-  observer.min   = t.min; 
-  observer.sec   = t.sec;
-
-  //observer.hour  = hour++; 
-  //observer.min   = 0; 
-  //observer.sec   = 0;
-
-  //observer.hour = hour;
-  hour += 1;
-  if(hour > 24) hour -= 24;
+  time_t now;
+  time(&now);
+  tm *current_time = localtime(&now); 
+  observer.year  = current_time->tm_year;
+  observer.month = current_time->tm_mon; 
+  observer.day   = current_time->tm_mday;
+  observer.hour  = current_time->tm_hour; 
+  observer.min   = current_time->tm_min; 
+  observer.sec   = current_time->tm_sec;
 
   Serial.println("Updating");
   uint32_t start = micros();
