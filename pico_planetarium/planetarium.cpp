@@ -7,6 +7,7 @@
 #include "skyline.h"
 #include "font_8x5.h"
 #include "font_16x12.h"
+#include "images.h"
 #include "Arduino.h"
 
 #include "pico/stdlib.h"
@@ -194,6 +195,7 @@ void c_planetarium :: update(s_observer o)
   plot_constellations(); //133ms
   plot_stars(); //452ms
   plot_planets(); //3ms
+  plot_moon();
   plot_constellation_names(); //9ms
 
   //obscure the area bellow the horizon
@@ -532,7 +534,6 @@ void c_planetarium :: plot_alt_az_grid(uint16_t colour)
 
 void c_planetarium :: plot_planes()
 {
-
   //plot celestial equator
   float az, alt;
   ra_dec_to_alt_az(90, 90, alt, az);
@@ -709,26 +710,40 @@ void c_planetarium :: plot_planets()
     //get coordinated and magnitude of x
     calculate_pixel_coords(x, y);
 
-    const uint16_t colours[] = {
-      colour565(163,161,155), //mercury
-      colour565(248,248,186), //venus
-      colour565(163,161,155), //earth
-      colour565(255, 83, 73), //mars
-      colour565(222,184,135), //jupiter
-      colour565(218,165,32), //saturn
-      colour565(173,216,230), //uranus
-      colour565(0,191,255), //neptune
-      colour565(255,255,255), //pluto`
+    switch(idx)
+    {
+      case 0: draw_object(x, y, 4, (uint16_t*)mercury); break;
+      case 1: draw_object(x, y, 4, (uint16_t*)venus); break;
+      case 3: draw_object(x, y, 4, (uint16_t*)mars); break;
+      case 4: draw_object(x, y, 4, (uint16_t*)jupiter); break;
+      case 5: 
+        draw_object(x, y, 4, (uint16_t*)saturn); 
+        draw_line(x-6, y-6, x+6, y+6, colour565(0x49, 0x42, 0x3b));
+        break;
+      case 6: draw_object(x, y, 4, (uint16_t*)uranus); break;
+      case 7: draw_object(x, y, 4, (uint16_t*)neptune); break;
     };
-
-    uint16_t colour = colours[idx];
-    fill_circle(x, y, 4, colour_scale(colour, 51));
-    fill_circle(x-1, y-1, 3, colour_scale(colour, 128));
-    fill_circle(x-1, y-1, 2, colour_scale(colour, 192));
-    fill_circle(x-1, y-1, 1, colour_scale(colour, 256));
     draw_string(x+4, y-16, font_8x5, planet_names[idx], colour565(223, 136, 247));
 
   }
+
+  double ra, dec;
+  convert_to_ra_dec(-earth_x, -earth_y, -earth_z, ra, dec);
+
+  float alt, az;
+  ra_dec_to_alt_az(ra, dec, alt, az);
+
+  float x, y, z;
+  calculate_view(alt, az, x, y, z);
+
+  //don't bother plotting stars outside field of observer
+  if(z < 0.0f) return;
+  if(x*x + y*y > 0.5) return;
+
+  //get coordinated and magnitude of x
+  calculate_pixel_coords(x, y);
+  draw_object(x, y, 10, (uint16_t*)sun);
+  draw_string(x+4, y-16, font_8x5, "Sun", colour565(223, 136, 247));
 }
 
 void c_planetarium :: plot_constellation_names()
@@ -951,4 +966,67 @@ void c_planetarium :: compute_planet_position(double jd, s_keplarian elements, s
     y=cos(eps)*yecl - sin(eps)*zecl;
     z=sin(eps)*yecl + cos(eps)*zecl;
 
+}
+
+//code adapted from https://www.celestialprogramming.com/lowprecisionmoonposition.html
+//Low precision geocentric moon position (RA,DEC) from Astronomical Almanac page D22 (2017 ed)
+float c_planetarium :: sind(float r){return sin(to_radians(r));}
+float c_planetarium :: cosd(float r){return cos(to_radians(r));}
+void c_planetarium :: plot_moon()
+{
+
+	float T = (julian_date-2451545)/36525;
+	float L = 218.32 + 481267.881*T + 
+    6.29*sind(135.0 + 477198.87*T) - 
+    1.27*sind(259.3 - 413335.36*T) + 
+    0.66*sind(235.7 + 890534.22*T) + 
+    0.21*sind(269.9 + 954397.74*T) - 
+    0.19*sind(357.5 + 35999.05*T) - 
+    0.11*sind(186.5 + 966404.03*T);
+
+	float B = 5.13*sind( 93.3 + 483202.02*T) + 
+    0.28*sind(228.2 + 960400.89*T) - 
+    0.28*sind(318.3 + 6003.15*T) - 
+    0.17*sind(217.6 - 407332.21*T);
+
+	float P = 0.9508 + 0.0518*cosd(135.0 + 477198.87*T) + 
+    0.0095*cosd(259.3 - 413335.36*T) + 
+    0.0078*cosd(235.7 + 890534.22*T) + 
+    0.0028*cosd(269.9 + 954397.74*T);
+
+	float SD=0.2724*P;
+	float r=1/sind(P);
+
+	float l = cosd(B) * cosd(L);
+	float m = 0.9175*cosd(B)*sind(L) - 0.3978*sind(B);
+	float n = 0.3978*cosd(B)*sind(L) + 0.9175*sind(B);
+
+	float ra=to_degrees(atan2(m,l));
+	if(ra<0)ra+=360;
+	float dec=to_degrees(asin(n));
+
+	float alt, az;
+  ra_dec_to_alt_az(ra, dec, alt, az);
+
+  float x, y, z;
+  calculate_view(alt, az, x, y, z);
+
+  if(abs(x) > 0.5f || abs(y) > 0.5f) return;
+  if(z < 0) return;
+  calculate_pixel_coords(x, y);
+  
+  draw_object(x, y, 10, (uint16_t*)moon);
+  draw_string(x+4, y-16, font_8x5, "Moon", colour565(223, 136, 247));
+}
+
+void c_planetarium :: draw_object(uint16_t x, uint16_t y, uint16_t r, uint16_t* image)
+{
+  for(int16_t xx = -r; xx<r; xx++)
+  {
+    for(int16_t yy = -r; yy<r; yy++)
+    {
+      if((xx*xx+yy*yy)>(r*r)) continue;
+      set_pixel(x+xx, y+yy, image[((xx+r)*2*r)+yy+r]);
+    }
+  }
 }

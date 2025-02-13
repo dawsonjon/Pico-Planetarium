@@ -35,9 +35,9 @@
 
 s_observer observer =
 {
-  .field              = 60.0f,   //float field of view in degrees 
-  .alt                = 20.0f,   //float altidute in degrees
-  .az                 = 160.0f,  //float azimuth in degrees
+  .field              = 90.0f,   //float field of view in degrees 
+  .alt                = 10.0f,   //float altidute in degrees
+  .az                 = 270.0f,  //float azimuth in degrees
   .smallest_magnitude = 6.0f,    //float smallest magnitude star to plot
   
   .latitude           = 51.0,//float latitude - latitude in degrees
@@ -58,9 +58,9 @@ void setup() {
   tm timeinfo;
   timeinfo.tm_year = 2025;
   timeinfo.tm_mon = 2;
-  timeinfo.tm_mday = 3;
-  timeinfo.tm_hour = 19;
-  timeinfo.tm_min = 52;
+  timeinfo.tm_mday = 11;
+  timeinfo.tm_hour = 18;
+  timeinfo.tm_min = 16;
   timeinfo.tm_sec = 0;
   timeval tv = {.tv_sec = mktime(&timeinfo)};
   settimeofday(&tv, NULL);
