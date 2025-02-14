@@ -31,7 +31,7 @@ for y in range(h):
     color = (color >> 8 | color << 8) & 0xffff;
     pixels.append("0x%04x"%color)
 pixels = ",\n".join(pixels)
-contents = "static const uint16_t __in_flash() %s[] = {%s};"%(name, pixels)
+contents = "static const uint16_t %s[] = {%s};"%(name, pixels)
 
 with open(output_file, "w") as outf:
   outf.write(contents);

@@ -8,177 +8,16 @@
 #include "font_8x5.h"
 #include "font_16x12.h"
 #include "images.h"
-#include "Arduino.h"
 
-#include "pico/stdlib.h"
+//#include "pico/stdlib.h"
 
-uint16_t buffer[height][width] = {};
 const char * const planet_names[]={"Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","Sun"};
-
-
-
-void c_planetarium :: set_pixel(uint16_t x, uint16_t y, uint16_t colour, uint16_t alpha)
-{
-  if(x>=width) return;
-  if(y>=height) return;
-  uint16_t old_colour = buffer[y][x];
-  buffer[y][x] = alpha_blend(old_colour, colour, alpha);
-}
-
-void c_planetarium :: draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t colour, uint16_t alpha)
-{
-    bool one_point_in_view = 
-      (x1 >= 0 && x1 < width && y1 >= 0 && y1 < height) || 
-      (x2 >= 0 && x2 < width && y2 >= 0 && y2 < height);
-    if(!one_point_in_view) return;
-
-    //draw line between 2 points
-    int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1;
-    int dy = -abs(y2 - y1), sy = y1 < y2 ? 1 : -1;
-    int err = dx + dy, e2;
-  
-    while (1) {
-        set_pixel(x1, y1, colour, alpha);
-        if (x1 == x2 && y1 == y2) break;
-        e2 = 2 * err;
-        if (e2 >= dy) { err += dy; x1 += sx; }
-        if (e2 <= dx) { err += dx; y1 += sy; }
-    }
-}
-
-void c_planetarium::draw_string(uint16_t x, uint16_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t alpha) 
-{
-  const uint8_t font_width  = font[1];
-  const uint8_t font_space  = font[2];
-  for(int32_t x_n=x; *s; x_n+=(font_width+font_space)) {
-      draw_char(x_n, y, font, *(s++), fg, alpha);
-  }
-}
-
-void c_planetarium::draw_char(uint16_t x, uint16_t y, const uint8_t *font, char c, uint16_t fg, uint16_t alpha) 
-{
-
-  const uint8_t font_height = font[0];
-  const uint8_t font_width  = font[1];
-  const uint8_t font_space  = font[2];
-  const uint8_t first_char  = font[3];
-  const uint8_t last_char   = font[4];
-  const uint16_t bytes_per_char = font_width*font_height/8;
-
-  if(c<first_char||c>last_char) return;
-
-  uint16_t font_index = ((c-first_char)*bytes_per_char) + 5u;
-  uint8_t data = font[font_index++];
-  uint8_t bits_left = 8;
-
-  for(uint8_t xx = 0; xx<font_width; ++xx)
-  {
-    for(uint8_t yy = 0; yy<font_height; ++yy)
-    {
-      if(data & 0x01){
-        set_pixel(x+xx, y+yy, fg, alpha);
-      }
-      data >>= 1;
-      bits_left--;
-      if(bits_left == 0)
-      {
-        data = font[font_index++];
-        bits_left = 8;
-      }
-    }
-  }
-}
-
-void c_planetarium::fill_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha)
-{
-  for (int16_t y = -radius; y <= radius; y++)
-  {
-    for (int16_t x = -radius; x <= radius; x++)
-    {
-      if (x * x + y * y <= radius * radius)
-      {
-          set_pixel(xc + x, yc + y, colour, alpha);
-      }
-    }
-  }
-}
-
-void c_planetarium :: draw_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha) 
-{
-    int16_t x = 0, y = radius;
-    int16_t d = 1 - radius;
-    
-    while (x <= y) {
-        set_pixel(xc + x, yc + y, colour, alpha);
-        set_pixel(xc - x, yc + y, colour, alpha);
-        set_pixel(xc + x, yc - y, colour, alpha);
-        set_pixel(xc - x, yc - y, colour, alpha);
-        set_pixel(xc + y, yc + x, colour, alpha);
-        set_pixel(xc - y, yc + x, colour, alpha);
-        set_pixel(xc + y, yc - x, colour, alpha);
-        set_pixel(xc - y, yc - x, colour, alpha);
-        
-        x++;
-        if (d < 0) {
-            d += 2 * x + 1;
-        } else {
-            y--;
-            d += 2 * (x - y) + 1;
-        }
-    }
-}
-
-uint16_t c_planetarium::colour565(uint8_t r, uint8_t g, uint8_t b)
-{
-    uint16_t val = (((r >> 3) & 0x1f) << 11) | (((g >> 2) & 0x3f) << 5) | ((b >> 3) & 0x1f);
-    return (val >> 8) | (val << 8);
-}
-
-void c_planetarium::colour_rgb(uint16_t colour_565, uint8_t &r, uint8_t &g, uint8_t &b)
-{
-    colour_565 = (colour_565 >> 8) | (colour_565 << 8);
-    r = ((colour_565 >> 11) & 0x1f) << 3;
-    g = ((colour_565 >> 5) & 0x3f) << 2;
-    b = (colour_565 & 0x1f) << 3;
-}
-
-uint16_t c_planetarium::colour_scale(uint16_t colour, uint16_t alpha)
-{
-    uint8_t r, g, b;
-    colour_rgb(colour, r, g, b);
-    r=std::min((r*alpha)>>8, 255);
-    g=std::min((g*alpha)>>8, 255);
-    b=std::min((b*alpha)>>8, 255);
-    return colour565(r, g, b);
-}
-
-uint16_t c_planetarium::alpha_blend(uint16_t old_colour, uint16_t colour, uint16_t alpha)
-{
-    if(alpha == 256) return colour;
-
-    uint8_t old_r, old_g, old_b;
-    colour_rgb(old_colour, old_r, old_g, old_b);
-    old_r=((uint16_t)old_r*(256-alpha))>>8;
-    old_g=((uint16_t)old_g*(256-alpha))>>8;
-    old_b=((uint16_t)old_b*(256-alpha))>>8;
-    uint8_t r, g, b;
-    colour_rgb(colour, r, g, b);
-    uint16_t blended_r = r; uint16_t blended_g = g; uint16_t blended_b = b;
-    blended_r *= alpha; blended_g *= alpha; blended_b *= alpha;
-    blended_r >>= 8; blended_g >>= 8; blended_b >>= 8;
-    blended_r += old_r; blended_g += old_g; blended_b += old_b;
-    blended_r = std::min(blended_r, (uint16_t)255);
-    blended_g = std::min(blended_g, (uint16_t)255);
-    blended_b = std::min(blended_b, (uint16_t)255);
-    return colour565(blended_r, blended_g, blended_b);
-}
-
 
 void c_planetarium :: update(s_observer o)
 {
   observer = o;
   local_sidereal_time();
-  fill_rect(0, 0, width, height, colour565(5, 0, 50));
+  frame_buffer.fill_rect(0, 0, width, height, frame_buffer.colour565(5, 0, 50));
 
   //calculate constants related to observer view
   sin_lat = sin(to_radians(observer.latitude));
@@ -189,8 +28,8 @@ void c_planetarium :: update(s_observer o)
   cos_theta = cos(to_radians(theta));
 
   plot_milky_way(); //66ms
-  plot_alt_az_grid(colour565(255, 255, 255)); //107ms
-  plot_ra_dec_grid(colour565(255, 0, 128)); //243ms
+  plot_alt_az_grid(frame_buffer.colour565(255, 255, 255)); //107ms
+  plot_ra_dec_grid(frame_buffer.colour565(255, 0, 128)); //243ms
   plot_planes(); //38ms
   plot_constellations(); //133ms
   plot_stars(); //452ms
@@ -210,7 +49,7 @@ void c_planetarium :: update(s_observer o)
   for (int y = -height/2; y <= max_y; y++) {
       for (int x = -width/2; x <= width/2; x++) {
           if (((float)x * x) * ((float)b * b) + ((float)y * y) * ((float)a * a) > ((float)a * a) * ((float)b * b)) {
-              set_pixel(width/2 + x, height/2 - y, colour565(0, 0, 0), 200);
+              frame_buffer.set_pixel(width/2 + x, height/2 - y, frame_buffer.colour565(0, 0, 0), 200);
           }
       }
   }
@@ -222,7 +61,7 @@ void c_planetarium :: update(s_observer o)
       uint16_t from_y = 240.0f + (y*240.0f/view_minor_radius);
       if(from_x < 480 && from_y < 480 && skyline[from_x * 480 + from_y] != 0xffff)
       {
-        set_pixel(width/2 + x, height/2 + y, colour565(0, 0, 0), 200);
+        frame_buffer.set_pixel(width/2 + x, height/2 + y, frame_buffer.colour565(0, 0, 0), 200);
       }
     }
   }
@@ -231,7 +70,7 @@ void c_planetarium :: update(s_observer o)
 
   char buffer[100];
   snprintf(buffer, 100, "%0.1f\x7f,%0.1f\x7f", observer.latitude, observer.longitude);
-  draw_string(0, height-8, font_8x5, buffer, colour565(255, 255, 255));
+  frame_buffer.draw_string(0, height-8, font_8x5, buffer, frame_buffer.colour565(255, 255, 255));
   snprintf(buffer, 100, "%04u-%02u-%02u %02u:%02u:%02u",
     observer.year,
     (uint16_t)observer.month,
@@ -239,19 +78,7 @@ void c_planetarium :: update(s_observer o)
     (uint16_t)observer.hour,
     (uint16_t)observer.min,
     (uint16_t)observer.sec);
-  draw_string(width-(19*6), height-8, font_8x5, buffer, colour565(255, 255, 255));
-}
-
-void c_planetarium :: fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha)
-{
-  //fill buffer with background colour
-  for(uint16_t xx = 0; xx < w; xx++)
-  {
-    for(uint16_t yy = 0; yy < h; yy++)
-    {
-      set_pixel(x+xx, y+yy, colour, alpha);
-    }
-  }
+  frame_buffer.draw_string(width-(19*6), height-8, font_8x5, buffer, frame_buffer.colour565(255, 255, 255));
 }
 
 inline float c_planetarium :: to_radians(float x)
@@ -367,7 +194,7 @@ void c_planetarium :: plot_constellations()
     if(z1 < 0.0f || z2 < 0.0f) continue;
     calculate_pixel_coords(x1, y1);
     calculate_pixel_coords(x2, y2);
-    draw_line(x1, y1, x2, y2, colour565(0, 0, 255), 200); 
+    frame_buffer.draw_line(x1, y1, x2, y2, frame_buffer.colour565(0, 0, 255), 200); 
 
   }
 }
@@ -395,7 +222,7 @@ void c_planetarium :: plot_plane(float pole_alt, float pole_az, uint16_t colour)
     bool draw = (z1 >= 0.0f) && (z2 >= 0.0f);
     
     //draw line between 2 points
-    if(draw) draw_line(x1, y1, x2, y2, colour, 128);
+    if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 128);
 
     x1 = x2;
     y1 = y2;
@@ -429,7 +256,7 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
       bool draw = (z1 >= 0.0f) && (z2 >= 0.0f);
       
       //draw line between 2 points
-      if(draw) draw_line(x1, y1, x2, y2, colour, 48);
+      if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 48);
 
       x1 = x2;
       y1 = y2;
@@ -460,7 +287,7 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
       bool draw = (z1 > 0.0f) && (z2 > 0.0f);
       
       //draw line between 2 points
-      if(draw) draw_line(x1, y1, x2, y2, colour, 48);
+      if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 48);
 
       x1 = x2;
       y1 = y2;
@@ -493,7 +320,7 @@ void c_planetarium :: plot_alt_az_grid(uint16_t colour)
       bool draw = (z1 >= 0.0f) && (z2 >= 0.0f);
       
       //draw line between 2 points
-      if(draw) draw_line(x1, y1, x2, y2, colour, 16);
+      if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 16);
 
       x1 = x2;
       y1 = y2;
@@ -521,7 +348,7 @@ void c_planetarium :: plot_alt_az_grid(uint16_t colour)
       bool draw = (z1 >= 0.0f) && (z2 >= 0.0f);
       
       //draw line between 2 points
-      if(draw) draw_line(x1, y1, x2, y2, colour, 16);
+      if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 16);
 
       x1 = x2;
       y1 = y2;
@@ -537,13 +364,13 @@ void c_planetarium :: plot_planes()
   //plot celestial equator
   float az, alt;
   ra_dec_to_alt_az(90, 90, alt, az);
-  plot_plane(observer.latitude, 0, colour565(0, 100, 255));
+  plot_plane(observer.latitude, 0, frame_buffer.colour565(0, 100, 255));
 
   //plot ecliptic
   const float orbital_noth_pole_dec = 66.56;
   const float orbital_noth_pole_ra = 270;
   ra_dec_to_alt_az(orbital_noth_pole_ra, orbital_noth_pole_dec, alt, az);
-  plot_plane(alt, az, colour565(255, 0, 64));
+  plot_plane(alt, az, frame_buffer.colour565(255, 0, 64));
 
 }
 
@@ -563,16 +390,16 @@ void c_planetarium :: plot_cardinal_points()
     if(x >= 0 && x < width && y >= 0 && y < height && z > -0.01f)
     {
       switch(az){
-        case 4*0: draw_char(x-6, y+5, font_16x12, 'N',    colour565(255, 128, 0)); break;
-        case 4*45: draw_string(x-3, y+5, font_8x5, "NE",  colour565(255, 128, 0)); break;
-        case 4*90: draw_char(x-6, y+5, font_16x12,'E',    colour565(255, 128, 0)); break;
-        case 4*135: draw_string(x-3, y+5, font_8x5, "SE", colour565(255, 128, 0)); break;
-        case 4*180: draw_char(x-6, y+5, font_16x12,'S',   colour565(255, 128, 0)); break;
-        case 4*225: draw_string(x-3, y+5, font_8x5, "SW", colour565(255, 128, 0)); break;
-        case 4*270: draw_char(x-6, y+5, font_16x12,'W',   colour565(255, 128, 0)); break;
-        case 4*315: draw_string(x-3, y+5, font_8x5, "NW", colour565(255, 128, 0)); break;
+        case 4*0: frame_buffer.draw_char(x-6, y+5, font_16x12, 'N',    frame_buffer.colour565(255, 128, 0)); break;
+        case 4*45: frame_buffer.draw_string(x-3, y+5, font_8x5, "NE",  frame_buffer.colour565(255, 128, 0)); break;
+        case 4*90: frame_buffer.draw_char(x-6, y+5, font_16x12,'E',    frame_buffer.colour565(255, 128, 0)); break;
+        case 4*135: frame_buffer.draw_string(x-3, y+5, font_8x5, "SE", frame_buffer.colour565(255, 128, 0)); break;
+        case 4*180: frame_buffer.draw_char(x-6, y+5, font_16x12,'S',   frame_buffer.colour565(255, 128, 0)); break;
+        case 4*225: frame_buffer.draw_string(x-3, y+5, font_8x5, "SW", frame_buffer.colour565(255, 128, 0)); break;
+        case 4*270: frame_buffer.draw_char(x-6, y+5, font_16x12,'W',   frame_buffer.colour565(255, 128, 0)); break;
+        case 4*315: frame_buffer.draw_string(x-3, y+5, font_8x5, "NW", frame_buffer.colour565(255, 128, 0)); break;
       };
-      fill_circle(x, y, 3, colour565(255, 128, 0), 200);
+      frame_buffer.fill_circle(x, y, 3, frame_buffer.colour565(255, 128, 0), 200);
     }
   }
 }
@@ -615,7 +442,7 @@ void c_planetarium :: plot_milky_way()
       uint8_t n = rand_range(15, 30);
       for(uint8_t i=0; i<rand_range(100, 200); i++)
       {
-        fill_circle(x+rand_range(-n, n), y+rand_range(-n, n), rand_range(1, 5), colour565(255, 255, 255), 8);
+        frame_buffer.fill_circle(x+rand_range(-n, n), y+rand_range(-n, n), rand_range(1, 5), frame_buffer.colour565(255, 255, 255), 8);
       }
     }
   }
@@ -658,23 +485,23 @@ void c_planetarium :: plot_stars()
     //t0 = micros();
     if(mag <= 1)
     {
-      fill_circle(x, y, 6, star_colour(mk, 1), 9);
-      fill_circle(x, y, 3, star_colour(mk, 3), 128);
-      fill_circle(x, y, 2, star_colour(mk, 1));
+      frame_buffer.fill_circle(x, y, 6, star_colour(mk, 1), 9);
+      frame_buffer.fill_circle(x, y, 3, star_colour(mk, 3), 128);
+      frame_buffer.fill_circle(x, y, 2, star_colour(mk, 1));
     }
     else if(mag <= 2)
     {
-      fill_circle(x, y, 2, star_colour(mk, 3));
-      fill_circle(x, y, 1, star_colour(mk, 1));
+      frame_buffer.fill_circle(x, y, 2, star_colour(mk, 3));
+      frame_buffer.fill_circle(x, y, 1, star_colour(mk, 1));
     }
     else if(mag <= 3)
     {
-      fill_circle(x, y, 1, star_colour(mk, 2));
-      set_pixel(x, y, star_colour(mk, 1));
+      frame_buffer.fill_circle(x, y, 1, star_colour(mk, 2));
+      frame_buffer.set_pixel(x, y, star_colour(mk, 1));
     }
     else
     {
-      set_pixel(x, y, star_colour(mk, mag-3));
+      frame_buffer.set_pixel(x, y, star_colour(mk, mag-3));
     }
     //Serial.print("plotting: ");
     //Serial.println(micros()-t0);
@@ -712,18 +539,18 @@ void c_planetarium :: plot_planets()
 
     switch(idx)
     {
-      case 0: draw_object(x, y, 4, (uint16_t*)mercury); break;
-      case 1: draw_object(x, y, 4, (uint16_t*)venus); break;
-      case 3: draw_object(x, y, 4, (uint16_t*)mars); break;
-      case 4: draw_object(x, y, 4, (uint16_t*)jupiter); break;
+      case 0: frame_buffer.draw_object(x, y, 4, (uint16_t*)mercury); break;
+      case 1: frame_buffer.draw_object(x, y, 4, (uint16_t*)venus); break;
+      case 3: frame_buffer.draw_object(x, y, 4, (uint16_t*)mars); break;
+      case 4: frame_buffer.draw_object(x, y, 6, (uint16_t*)jupiter); break;
       case 5: 
-        draw_object(x, y, 4, (uint16_t*)saturn); 
-        draw_line(x-6, y-6, x+6, y+6, colour565(0x49, 0x42, 0x3b));
+        frame_buffer.draw_object(x, y, 4, (uint16_t*)saturn); 
+        frame_buffer.draw_line(x-6, y-6, x+6, y+6, frame_buffer.colour565(0x49, 0x42, 0x3b));
         break;
-      case 6: draw_object(x, y, 4, (uint16_t*)uranus); break;
-      case 7: draw_object(x, y, 4, (uint16_t*)neptune); break;
+      case 6: frame_buffer.draw_object(x, y, 4, (uint16_t*)uranus); break;
+      case 7: frame_buffer.draw_object(x, y, 4, (uint16_t*)neptune); break;
     };
-    draw_string(x+4, y-16, font_8x5, planet_names[idx], colour565(223, 136, 247));
+    frame_buffer.draw_string(x+4, y-16, font_8x5, planet_names[idx], frame_buffer.colour565(223, 136, 247));
 
   }
 
@@ -742,8 +569,8 @@ void c_planetarium :: plot_planets()
 
   //get coordinated and magnitude of x
   calculate_pixel_coords(x, y);
-  draw_object(x, y, 10, (uint16_t*)sun);
-  draw_string(x+4, y-16, font_8x5, "Sun", colour565(223, 136, 247));
+  frame_buffer.draw_object(x, y, 10, (uint16_t*)sun);
+  frame_buffer.draw_string(x+4, y-16, font_8x5, "Sun", frame_buffer.colour565(223, 136, 247));
 }
 
 void c_planetarium :: plot_constellation_names()
@@ -756,11 +583,11 @@ void c_planetarium :: plot_constellation_names()
 
     float x, y, z;
     calculate_view(alt, az, x, y, z);
-
-    if(abs(x) > 0.5f || abs(y) > 0.5f) continue;
-    if(z < 0) continue;
     calculate_pixel_coords(x, y);
-    draw_string(x, y, font_8x5, constellation_names[idx], colour565(136, 247, 225));
+
+    if(x > width || x < 0 || y > height || y < 0 || z < 0) continue;
+
+    frame_buffer.draw_string(x, y, font_8x5, constellation_names[idx], frame_buffer.colour565(136, 247, 225));
     
   }
 }
@@ -829,7 +656,7 @@ uint16_t c_planetarium :: star_colour(float mk, uint8_t mag)
     g = 255 - (255*(mk-50)/20);
   }
 
-  return colour565(r>>mag, g>>mag, b>>mag);
+  return frame_buffer.colour565(r>>mag, g>>mag, b>>mag);
 }
 
 //code to compute planet positions adapted from:
@@ -1015,18 +842,6 @@ void c_planetarium :: plot_moon()
   if(z < 0) return;
   calculate_pixel_coords(x, y);
   
-  draw_object(x, y, 10, (uint16_t*)moon);
-  draw_string(x+4, y-16, font_8x5, "Moon", colour565(223, 136, 247));
-}
-
-void c_planetarium :: draw_object(uint16_t x, uint16_t y, uint16_t r, uint16_t* image)
-{
-  for(int16_t xx = -r; xx<r; xx++)
-  {
-    for(int16_t yy = -r; yy<r; yy++)
-    {
-      if((xx*xx+yy*yy)>(r*r)) continue;
-      set_pixel(x+xx, y+yy, image[((xx+r)*2*r)+yy+r]);
-    }
-  }
+  frame_buffer.draw_object(x, y, 10, (uint16_t*)moon);
+  frame_buffer.draw_string(x+4, y-16, font_8x5, "Moon", frame_buffer.colour565(223, 136, 247));
 }

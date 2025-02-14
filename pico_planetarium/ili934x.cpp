@@ -37,6 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "hardware/dma.h"
 #include "pico/stdlib.h"
 #include <cstring>
+#include <Arduino.h>
 
 #ifndef pgm_read_byte
 #define pgm_read_byte(addr) (*(const uint8_t *)(addr))
@@ -54,7 +55,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     a = a + (~b) + 1;
 #endif
 
-ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width, uint16_t height, ILI934X_ROTATION rotation)
+ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width, uint16_t height, ILI934X_ROTATION rotation, uint8_t display_type)
 {
     _spi = spi;
     _cs = cs;
@@ -63,10 +64,66 @@ ILI934X::ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width, uint16
     _init_height = _height = height;
     _rotation = rotation;
     _invert_colours = false;
-
+    _display_type = display_type;
 }
 
-void ILI934X::init()
+void ILI934X::configure_st7796()
+{
+  sleep_ms(5);
+
+  _write(_SWRST, NULL, 0);
+	sleep_ms(5);
+
+  _write(_SLPOUT, NULL, 0);                                          
+	sleep_ms(5);
+
+  //Command Set control
+	_write(0xF0, (uint8_t *)"\xC3", 1);//Enable extension command 2 partI                               
+	_write(0xF0, (uint8_t *)"\x96", 1);//Enable extension command 2 partII                               
+
+  _setRotation(_rotation, _invert_colours);
+  
+  //Interface Pixel Format
+  _write(_PIXSET, (uint8_t *)"\x55", 1);//Control interface color format set to 16 
+	
+  //Column inversion
+	_write(0xB4, (uint8_t *)"\x01", 1);//1-dot inversion 
+
+  //Display Function Control
+  _write(_DISCTRL, (uint8_t *)"\x80\x02\x3B", 3);//1-dot inversion 
+
+  //Display Output Ctrl Adjust
+  _write(_DTCTRLA, (uint8_t *)"\x40\x8A\x00\x00\x29\x19\xA5\x33", 3);
+	
+  //Power control2
+  _write(_PWCTRL2, (uint8_t *)"\x06", 1);
+
+  //Power control 3
+  _write(_PWCTRL3, (uint8_t *)"\xA7", 1); 
+
+  //VCOM Control
+  _write(_VMCTRL1, (uint8_t *)"\x18", 1); 
+	//writecommand(0xC5); //VCOM Control
+	//writedata(0x18);    //VCOM=0.9
+  _write(0xc7, (uint8_t *)"\x86", 1);//doesn't work without this, is my display really a st7796?
+
+	sleep_us(120);
+	
+	//ST7796 Gamma Sequence
+  _write(_PGAMCTRL, (uint8_t *)"\xF0\x09\x0b\x06\x04\x15\x2f\x54\x42\x3c\x17\x14\x18\x1b", 14); 
+  _write(_NGAMCTRL, (uint8_t *)"\xE0\x09\x0B\x06\x04\x03\x2B\x43\x42\x3B\x16\x14\x17\x1B", 14);
+
+  sleep_us(120);
+	
+  //Command Set control
+  _write(0xF0, (uint8_t *)"\x3C", 1);
+  _write(0xF0, (uint8_t *)"\x69", 1);
+
+  sleep_us(120);
+}
+
+
+void ILI934X::configure_ili934x()
 {
     _write(_SWRST, NULL, 0);
     sleep_ms(5);
@@ -94,6 +151,19 @@ void ILI934X::init()
 
     _write(_SLPOUT);
     _write(_DISPON);
+
+}
+
+void ILI934X::init()
+{
+  if(_display_type == 0)
+  {
+    configure_ili934x();
+  }
+  else
+  {
+    configure_st7796();
+  }
 }
 
 void ILI934X::setRotation(ILI934X_ROTATION rotation, bool invert_colours)

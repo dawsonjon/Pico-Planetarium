@@ -58,6 +58,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _PRCTRL 0xf7    // Pump Ratio Control
 #define _PWCTRL1 0xc0   // Power Control 1
 #define _PWCTRL2 0xc1   // Power Control 2
+#define _PWCTRL3 0xc2   // Power Control 2
 #define _VMCTRL1 0xc5   // VCOM Control 1
 #define _VMCTRL2 0xc7   // VCOM Control 2
 #define _FRMCTR1 0xb1   // Frame Rate Control 1
@@ -109,9 +110,11 @@ enum ILI934X_ROTATION
 class ILI934X
 {
 public:
-    ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width = 240, uint16_t height = 320, ILI934X_ROTATION rotation = R0DEG);
+    ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width = 240, uint16_t height = 320, ILI934X_ROTATION rotation = R0DEG, uint8_t display_type = 0);
 
     void init();
+    void configure_ili934x();
+    void configure_st7796();
     void setRotation(ILI934X_ROTATION rotation, bool invert_colours);
     void setPixel(uint16_t x, uint16_t y, uint16_t colour);
     void writeHLine(uint16_t x, uint16_t y, uint16_t w, const uint16_t line[]);
@@ -144,6 +147,7 @@ private:
     uint16_t _init_height;
     uint8_t _init_rotation;
     uint8_t _invert_colours;
+    uint8_t _display_type;
 };
 
 #endif //__ILI934X_H__

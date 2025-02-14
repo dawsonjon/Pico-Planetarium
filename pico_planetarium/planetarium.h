@@ -2,10 +2,7 @@
 #define __PLANETARIUM_H__
 
 #include <cstdint>
-
-static const uint16_t width = 320;
-static const uint16_t height = 240;
-extern uint16_t buffer[height][width];
+#include "frame_buffer.h"
 
 struct s_observer
 {
@@ -81,25 +78,16 @@ class c_planetarium
   float sind(float r);
   float cosd(float r);
 
-
-  uint16_t colour565(uint8_t r, uint8_t g, uint8_t b);
-  void colour_rgb(uint16_t colour_565, uint8_t &r, uint8_t &g, uint8_t &b);
-  uint16_t colour_scale(uint16_t colour, uint16_t alpha=256);
-  uint16_t alpha_blend(uint16_t old_colour, uint16_t colour, uint16_t alpha);
-  void set_pixel(uint16_t x, uint16_t y, uint16_t colour, uint16_t alpha=256);
-  void draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t colour, uint16_t alpha=256);
-  void fill_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha=256);
-  void draw_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha=256);
-  void draw_string(uint16_t x, uint16_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t alpha=256);
-  void draw_char(uint16_t x, uint16_t y, const uint8_t *font, char c, uint16_t fg, uint16_t alpha=256);
-  void fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha=256);
-  void draw_object(uint16_t x, uint16_t y, uint16_t r, uint16_t* image);
-
   double solve_kepler(double M, double e, double E);
   void convert_to_ra_dec(double x, double y, double z, double &ra, double &dec);
   void compute_planet_position(double jd, s_keplarian elements, s_keplarian rates, s_extra_terms extra_terms, double &x, double &y, double &z);
 
+  c_frame_buffer &frame_buffer;
+  uint16_t width, height;
+
   public:
+
+  c_planetarium(c_frame_buffer & frame_buffer, uint16_t width, uint16_t height):frame_buffer(frame_buffer), width(width), height(height){} 
 
   void update(s_observer observer);
 };
