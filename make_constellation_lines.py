@@ -47,7 +47,15 @@ def read_stars():
     except ValueError:
       continue
 
-    stars[number] = (ra, dec, constellation, magnitude)
+    sin_dec = sin(radians(dec))
+    cos_dec = cos(radians(dec))
+    sin_ra = sin(radians(-ra))
+    cos_ra = cos(radians(-ra))
+    x = cos_dec*-sin_ra
+    y = cos_dec*cos_ra
+    z = sin_dec
+
+    stars[number] = (x, y, z, constellation, magnitude)
 
   return stars
 
@@ -58,7 +66,7 @@ def read_constellations(stars):
 
   clines = []
   for line in data:
-    points = [stars[int(number)][:2] for number in line.split()[2:]]
+    points = [stars[int(number)][:3] for number in line.split()[2:]]
     last_point = points[0]
     for point in points[1:]:
       clines.append(last_point+point) 
@@ -70,11 +78,11 @@ stars = read_stars()
 clines = read_constellations(stars)
 
 num_clines = len(clines)
-clines = ",\n".join(["{%.7ff, %.7ff, %.7ff, %.7ff}"%(i) for i in clines])
+clines = ",\n".join(["{%.7ff, %.7ff, %.7ff, %.7ff, %.7ff, %.7ff}"%(i) for i in clines])
 clines = """
 #include "clines.h"
-uint16_t num_clines = %u;
-s_cline clines[num_clines] = {
+const uint16_t num_clines = %u;
+const s_cline clines[num_clines] = {
 %s
 };"""%(num_clines, clines);
 

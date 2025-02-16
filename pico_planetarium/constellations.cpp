@@ -13,7 +13,7 @@ const char* const  constellation_short_names[] = {
 
 const char* const constellation_names[] = {
 "Hydra", "Virgo", "Ursa Major", "Cetus", "Hercules", "Eridanus", "Pegasus", "Draco", "Centaurus",
-"Aquarius", "Ophiuchus", "Leo", "BoÃ¶tes", "Pisces", "Sagittarius", "Cygnus", "Taurus",
+"Aquarius", "Ophiuchus", "Leo", "Bootes", "Pisces", "Sagittarius", "Cygnus", "Taurus",
 "Camelopardalis", "Andromeda", "Puppis", "Auriga", "Aquila", "Serpens", "Perseus", "Cassiopeia",
 "Orion", "Cepheus", "Lynx", "Libra", "Gemini", "Cancer", "Vela", "Scorpius", "Carina",
 "Monoceros", "Sculptor", "Phoenix", "Canes Venatici", "Aries", "Capricornus", "Fornax",

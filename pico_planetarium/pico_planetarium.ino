@@ -45,7 +45,7 @@
 
 s_observer observer =
 {
-  .field              = 90.0f,   //float field of view in degrees 
+  .field              = 75.0f,   //float field of view in degrees 
   .alt                = 45.0f,   //float altidute in degrees
   .az                 = 180.0f,  //float azimuth in degrees
   .smallest_magnitude = 6.0f,    //float smallest magnitude star to plot
@@ -146,13 +146,18 @@ void loop()
   observer.min   = current_time->tm_min; 
   observer.sec   = current_time->tm_sec;
 
-  Serial.println("Updating");
+  observer.az += 0.5;
+  if(observer.az == 360) observer.az=0;
+
+  //Serial.println("Updating");
+  
   uint32_t start = micros();
   planetarium.update(observer);
+  display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)image, width*height*2);
   uint32_t elapsed = micros()-start;
   
+  //Serial.println(spi_get_baudrate(SPI_PORT));
   Serial.println(elapsed/1000);
-  display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)image, width*height*2);
 
   
   //sleep_ms(1000);
@@ -161,7 +166,7 @@ void loop()
 
 void configure_display()
 {
-  spi_init(SPI_PORT, 62500000);
+  spi_init(SPI_PORT, 75000000);
   gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
   gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
   gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);

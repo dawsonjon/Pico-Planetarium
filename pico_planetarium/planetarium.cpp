@@ -31,34 +31,35 @@ void c_planetarium :: update(s_observer o)
   build_rotation_matrix();
 
   //plot_milky_way(); //155ms 
-  plot_alt_az_grid(frame_buffer.colour565(54, 50, 90)); //20ms 
-  plot_ra_dec_grid(frame_buffer.colour565(54, 0, 65)); //20ms 
+  plot_alt_az_grid(frame_buffer.colour565(54, 50, 90)); //9ms 
+  plot_ra_dec_grid(frame_buffer.colour565(54, 0, 65)); //9ms 
   plot_planes(); //4ms 
-  plot_constellations(); //9ms 
-  plot_stars(); //44ms 
+  plot_constellations(); //8ms 
+  plot_stars(); //25ms 
   plot_planets(); //3ms
   plot_moon(); //2ms 
   plot_constellation_names(); //5ms
 
   //obscure the area bellow the horizon
-  uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
-  uint16_t view_minor_radius = view_major_radius * sin(to_radians(observer.alt));
-  const int a = view_major_radius;
-  const int b = view_minor_radius;
+  //uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
+  //uint16_t view_minor_radius = view_major_radius * sin(to_radians(observer.alt));
+  //const int a = view_major_radius;
+  //const int b = view_minor_radius;
 
 
   //11ms
   //draw skyline
-  int max_y = observer.alt>89.0f?height/2:0;
-  for (int y = -height/2; y <= max_y; y++) {
-    for (int x = 0; x <= width/2; x++) {
-      if (((int64_t)x * x) * ((int64_t)b * b) + ((int64_t)y * y) * ((int64_t)a * a) > ((int64_t)a * a) * ((int64_t)b * b)) {
-          frame_buffer.set_pixel(width/2 + x, height/2 - y, 0, 200);
-          frame_buffer.set_pixel(width/2 - x, height/2 - y, 0, 200);
-      }
-    }
-  }
+  //int max_y = observer.alt>89.0f?height/2:0;
+  //for (int y = -height/2; y <= max_y; y++) {
+  //  for (int x = 0; x <= width/2; x++) {
+  //    if (((int64_t)x * x) * ((int64_t)b * b) + ((int64_t)y * y) * ((int64_t)a * a) > ((int64_t)a * a) * ((int64_t)b * b)) {
+  //        frame_buffer.set_pixel(width/2 + x, height/2 - y, 0, 200);
+  //        frame_buffer.set_pixel(width/2 - x, height/2 - y, 0, 200);
+  //    }
+  //  }
+  //}
 
+  //90ms
   //int min_y = observer.alt>89.0f?-height/2:0;
   //for (int y = min_y; y <= height/2; y++) {
   //  for (int x = -width/2; x < width/2; x++) {
@@ -97,32 +98,6 @@ inline float c_planetarium :: to_degrees(float x)
 {
   return x * 180.0f/(float)M_PI;
 }
-
-/*
-void c_planetarium :: alt_az_to_ra_dec(float alt, float az, float &ra, float &dec)
-{
-    // Convert degrees to radians
-    const float sin_alt = sinf(to_radians(alt));
-    const float cos_alt = cosf(to_radians(alt));
-    const float sin_az = sinf(to_radians(az));
-    const float cos_az = cosf(to_radians(az));
-    
-    // Compute declination
-    dec = asinf(sin_alt * sin_lat + cos_alt * cos_lat * cos_az);
-    
-    // Compute hour angle
-    float ha = atan2f(-sin_az * cos_alt, cos_lat * sin_alt - sin_lat * cos_alt * cos_az);
-    
-    // Convert hour angle to right ascension
-    ra = lst - to_degrees(ha);
-    if (ra < 0) ra += 360.0f;
-    if (ra >= 360.0f) ra -= 360.0f;
-    
-    // Convert declination back to degrees
-    dec = to_degrees(dec);
-
-}
-*/
 
 void inline c_planetarium :: ra_dec_to_alt_az(float ra, float dec, float &alt, float &az)
 {
@@ -200,7 +175,6 @@ void inline c_planetarium :: calculate_view_ra_dec(float ra, float dec, float &x
 
   calculate_view_equatorial_x_y_z(x, y, z);
 
-
 }
 
 void c_planetarium :: calculate_pixel_coords(float &x, float &y)
@@ -214,11 +188,16 @@ void c_planetarium :: plot_constellations()
   uint16_t colour = frame_buffer.colour565(0, 0, 255);
   for(uint16_t idx=0; idx < num_clines; ++idx)
   {
-    float x1, y1, z1;
-    calculate_view_ra_dec(clines[idx].ra1, clines[idx].dec1, x1, y1, z1);
-
-    float x2, y2, z2;
-    calculate_view_ra_dec(clines[idx].ra2, clines[idx].dec2, x2, y2, z2);
+    float x1 = clines[idx].x1;
+    float y1 = clines[idx].y1;
+    float z1 = clines[idx].z1;
+    
+    calculate_view_equatorial_x_y_z(x1, y1, z1);
+    
+    float x2 = clines[idx].x2;
+    float y2 = clines[idx].y2;
+    float z2 = clines[idx].z2;
+    calculate_view_equatorial_x_y_z(x2, y2, z2);
 
     if(z1 < 0.0f || z2 < 0.0f) continue;
     calculate_pixel_coords(x1, y1);
@@ -251,7 +230,7 @@ void c_planetarium :: plot_plane(float pole_alt, float pole_az, uint16_t colour)
     bool draw = (z1 >= 0.0f) && (z2 >= 0.0f);
     
     //draw line between 2 points
-    if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 128);
+    if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour);
 
     x1 = x2;
     y1 = y2;
@@ -575,13 +554,13 @@ void c_planetarium :: plot_planes()
   //plot celestial equator
   float az, alt;
   ra_dec_to_alt_az(90, 90, alt, az);
-  plot_plane(observer.latitude, 0, frame_buffer.colour565(0, 100, 255));
+  plot_plane(observer.latitude, 0, frame_buffer.colour565(3, 50, 153));
 
   //plot ecliptic
   const float orbital_noth_pole_dec = 66.56;
   const float orbital_noth_pole_ra = 270;
   ra_dec_to_alt_az(orbital_noth_pole_ra, orbital_noth_pole_dec, alt, az);
-  plot_plane(alt, az, frame_buffer.colour565(255, 0, 64));
+  plot_plane(alt, az, frame_buffer.colour565(135, 0, 57));
 
 }
 
@@ -734,10 +713,10 @@ void c_planetarium :: plot_planets()
 
     //don't bother plotting stars outside field of observer
     if(z < 0.0f) continue;
-    if(x*x + y*y > 0.5) continue;
 
     //get coordinated and magnitude of x
     calculate_pixel_coords(x, y);
+    if(x < 0 || x > width || y < 0 || y > height) continue;
 
     switch(idx)
     {
@@ -1028,11 +1007,8 @@ void c_planetarium :: plot_moon()
 	if(ra<0)ra+=360;
 	float dec=to_degrees(asin(n));
 
-	float alt, az;
-  ra_dec_to_alt_az(ra, dec, alt, az);
-
   float x, y, z;
-  calculate_view_alt_az(alt, az, x, y, z);
+  calculate_view_ra_dec(ra, dec, x, y, z);
 
   if(abs(x) > 0.5f || abs(y) > 0.5f) return;
   if(z < 0) return;
