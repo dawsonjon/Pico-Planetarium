@@ -30,15 +30,15 @@ void c_planetarium :: update(s_observer o)
   cos_theta = cos(to_radians(theta));
   build_rotation_matrix();
 
-  //plot_milky_way(); //155ms checked
-  plot_alt_az_grid(frame_buffer.colour565(255, 255, 255)); //49ms checked
-  plot_ra_dec_grid(frame_buffer.colour565(255, 0, 128)); //89ms checked
-  plot_planes(); //19ms checked
-  plot_constellations(); //5ms checked
-  plot_stars(); //44ms checked
+  //plot_milky_way(); //155ms 
+  plot_alt_az_grid(frame_buffer.colour565(54, 50, 90)); //20ms 
+  plot_ra_dec_grid(frame_buffer.colour565(54, 0, 65)); //20ms 
+  plot_planes(); //4ms 
+  plot_constellations(); //9ms 
+  plot_stars(); //44ms 
   plot_planets(); //3ms
-  plot_moon();
-  plot_constellation_names(); //9ms
+  plot_moon(); //2ms 
+  plot_constellation_names(); //5ms
 
   //obscure the area bellow the horizon
   uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
@@ -47,27 +47,31 @@ void c_planetarium :: update(s_observer o)
   const int b = view_minor_radius;
 
 
+  //11ms
   //draw skyline
   int max_y = observer.alt>89.0f?height/2:0;
   for (int y = -height/2; y <= max_y; y++) {
-      for (int x = -width/2; x <= width/2; x++) {
-          if (((float)x * x) * ((float)b * b) + ((float)y * y) * ((float)a * a) > ((float)a * a) * ((float)b * b)) {
-              frame_buffer.set_pixel(width/2 + x, height/2 - y, frame_buffer.colour565(0, 0, 0), 200);
-          }
-      }
-  }
-
-  int min_y = observer.alt>89.0f?-height/2:0;
-  for (int y = min_y; y <= height/2; y++) {
-    for (int x = -width/2; x < width/2; x++) {
-      uint16_t from_x = 240.0f + (x*240.0f/view_major_radius);
-      uint16_t from_y = 240.0f + (y*240.0f/view_minor_radius);
-      if(from_x < 480 && from_y < 480 && skyline[from_x * 480 + from_y] != 0xffff)
-      {
-        frame_buffer.set_pixel(width/2 + x, height/2 + y, frame_buffer.colour565(0, 0, 0), 200);
+    for (int x = 0; x <= width/2; x++) {
+      if (((int64_t)x * x) * ((int64_t)b * b) + ((int64_t)y * y) * ((int64_t)a * a) > ((int64_t)a * a) * ((int64_t)b * b)) {
+          frame_buffer.set_pixel(width/2 + x, height/2 - y, 0, 200);
+          frame_buffer.set_pixel(width/2 - x, height/2 - y, 0, 200);
       }
     }
   }
+
+  //int min_y = observer.alt>89.0f?-height/2:0;
+  //for (int y = min_y; y <= height/2; y++) {
+  //  for (int x = -width/2; x < width/2; x++) {
+  //    uint16_t from_x = 240 + (x*240/view_major_radius);
+  //    uint16_t from_y = 240 + (y*240/view_minor_radius);
+  //    if (((int64_t)x * x) * ((int64_t)b * b) + ((int64_t)y * y) * ((int64_t)a * a) < ((int64_t)a * a) * ((int64_t)b * b)) {
+        //if(from_x < 480 && from_y < 480 && skyline[from_x * 480 + from_y] != 0xffff)
+        //{
+  //        frame_buffer.set_pixel(width/2 + x, height/2 + y, 0, 200);
+        //}
+  //    }
+  //  }
+  //}
 
   plot_cardinal_points();
 
@@ -94,6 +98,7 @@ inline float c_planetarium :: to_degrees(float x)
   return x * 180.0f/(float)M_PI;
 }
 
+/*
 void c_planetarium :: alt_az_to_ra_dec(float alt, float az, float &ra, float &dec)
 {
     // Convert degrees to radians
@@ -117,6 +122,7 @@ void c_planetarium :: alt_az_to_ra_dec(float alt, float az, float &ra, float &de
     dec = to_degrees(dec);
 
 }
+*/
 
 void inline c_planetarium :: ra_dec_to_alt_az(float ra, float dec, float &alt, float &az)
 {
@@ -137,39 +143,41 @@ void inline c_planetarium :: ra_dec_to_alt_az(float ra, float dec, float &alt, f
     if(az<0.0f) az+=360.0f;
 }
 
-void c_planetarium :: calculate_view(float alt, float az, float &x, float &y, float &z)
+void c_planetarium :: calculate_view_alt_az(float alt, float az, float &x, float &y, float &z)
 {
-  //rotate so that observer az is at bottom of screen
-  az -= observer.az;
-
-  //make zenith 0 on the x and y axis
+  //convert to x, y, z
   const float sin_alt = sin(to_radians(alt));
   const float cos_alt = cos(to_radians(alt));
-  const float sin_az = sin(to_radians(az));
-  const float cos_az = cos(to_radians(az));
-  x = cos_alt*sin_az;
-  y = cos_alt*-cos_az;
+  const float sin_az = sin(to_radians(180+az));
+  const float cos_az = cos(to_radians(180+az));
+  x = cos_alt*-sin_az;
+  y = cos_alt*cos_az;
   z = sin_alt;
 
-  //rotate around equinox
-  const float new_y = y*cos_theta-z*sin_theta;
-  const float new_z = y*sin_theta+z*cos_theta;
-  z = new_z;
-  y = new_y;
-
-  //0 is centre of view, +0.5 is at the top, -0.5 is at the bottom
-  x *= view_scale;
-  y *= view_scale; 
-  z *= view_scale;
+  calculate_view_horizontal_x_y_z(x, y, z);
 
 }
 
-void c_planetarium :: calculate_view_x_y_z(float &x, float &y, float &z)
+void c_planetarium :: calculate_view_equatorial_x_y_z(float &x, float &y, float &z)
 {
 
   float new_x = rotation_matrix[0][0]*x+rotation_matrix[0][1]*y+rotation_matrix[0][2]*z;
   float new_y = rotation_matrix[1][0]*x+rotation_matrix[1][1]*y+rotation_matrix[1][2]*z;
   float new_z = rotation_matrix[2][0]*x+rotation_matrix[2][1]*y+rotation_matrix[2][2]*z;
+
+  //0 is centre of view, +0.5 is at the top, -0.5 is at the bottom
+  x = new_x * view_scale;
+  y = new_y * view_scale; 
+  z = new_z * view_scale;
+
+}
+
+void c_planetarium :: calculate_view_horizontal_x_y_z(float &x, float &y, float &z)
+{
+
+  float new_x = view_rotation_matrix[0][0]*x+view_rotation_matrix[0][1]*y+view_rotation_matrix[0][2]*z;
+  float new_y = view_rotation_matrix[1][0]*x+view_rotation_matrix[1][1]*y+view_rotation_matrix[1][2]*z;
+  float new_z = view_rotation_matrix[2][0]*x+view_rotation_matrix[2][1]*y+view_rotation_matrix[2][2]*z;
 
   //0 is centre of view, +0.5 is at the top, -0.5 is at the bottom
   x = new_x * view_scale;
@@ -180,9 +188,6 @@ void c_planetarium :: calculate_view_x_y_z(float &x, float &y, float &z)
 
 void inline c_planetarium :: calculate_view_ra_dec(float ra, float dec, float &x, float &y, float &z)
 {
-  //float alt, az;
-  //ra_dec_to_alt_az(ra, dec, alt, az);
-  //calculate_view(alt, az, x, y, z);
 
   //convert to x, y, z
   const float sin_dec = sin(to_radians(dec));
@@ -193,14 +198,7 @@ void inline c_planetarium :: calculate_view_ra_dec(float ra, float dec, float &x
   y = cos_dec*cos_ra;
   z = sin_dec;
 
-  float new_x = rotation_matrix[0][0]*x+rotation_matrix[0][1]*y+rotation_matrix[0][2]*z;
-  float new_y = rotation_matrix[1][0]*x+rotation_matrix[1][1]*y+rotation_matrix[1][2]*z;
-  float new_z = rotation_matrix[2][0]*x+rotation_matrix[2][1]*y+rotation_matrix[2][2]*z;
-
-  //0 is centre of view, +0.5 is at the top, -0.5 is at the bottom
-  x = new_x * view_scale;
-  y = new_y * view_scale; 
-  z = new_z * view_scale;
+  calculate_view_equatorial_x_y_z(x, y, z);
 
 
 }
@@ -213,25 +211,19 @@ void c_planetarium :: calculate_pixel_coords(float &x, float &y)
 
 void c_planetarium :: plot_constellations()
 {
+  uint16_t colour = frame_buffer.colour565(0, 0, 255);
   for(uint16_t idx=0; idx < num_clines; ++idx)
   {
-
-    float alt1, az1;
-    ra_dec_to_alt_az(clines[idx].ra1, clines[idx].dec1, alt1, az1);
-    
-    float alt2, az2;
-    ra_dec_to_alt_az(clines[idx].ra2, clines[idx].dec2, alt2, az2);
-
     float x1, y1, z1;
-    calculate_view(alt1, az1, x1, y1, z1);
+    calculate_view_ra_dec(clines[idx].ra1, clines[idx].dec1, x1, y1, z1);
 
     float x2, y2, z2;
-    calculate_view(alt2, az2, x2, y2, z2);
+    calculate_view_ra_dec(clines[idx].ra2, clines[idx].dec2, x2, y2, z2);
 
     if(z1 < 0.0f || z2 < 0.0f) continue;
     calculate_pixel_coords(x1, y1);
     calculate_pixel_coords(x2, y2);
-    frame_buffer.draw_line(x1, y1, x2, y2, frame_buffer.colour565(0, 0, 255), 200); 
+    frame_buffer.draw_line(x1, y1, x2, y2, colour, 200); 
 
   }
 }
@@ -244,7 +236,7 @@ void c_planetarium :: plot_plane(float pole_alt, float pole_az, uint16_t colour)
   uint16_t az1 = 0;
   float x1, y1, z1;
   float alt = to_degrees(atan(cos(to_radians(az1-plane_direction))*sin(to_radians(plane_elevation))));
-  calculate_view(alt, az1, x1, y1, z1);
+  calculate_view_alt_az(alt, az1, x1, y1, z1);
   calculate_pixel_coords(x1, y1);
 
   for(uint16_t az=1; az <= 360; az += 1)
@@ -252,7 +244,7 @@ void c_planetarium :: plot_plane(float pole_alt, float pole_az, uint16_t colour)
     float x2, y2, z2;
     float alt = to_degrees(atan(cos(to_radians(az-plane_direction))*tan(to_radians(plane_elevation))));
 
-    calculate_view(alt, az, x2, y2, z2);
+    calculate_view_alt_az(alt, az, x2, y2, z2);
     calculate_pixel_coords(x2, y2);
     
     //don't bother plotting line outside field of observer
@@ -273,296 +265,306 @@ void c_planetarium :: plot_plane(float pole_alt, float pole_az, uint16_t colour)
 void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
 {
 
-
-
-  for(float declination=0.0f; declination<=90.0f; declination+=10.0f)
+  //plot lines of conastant right declination
+  for(int dec = 0; dec<90; dec+=10)
   {
-    float r = cos(to_radians(declination));
-    float x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3;
-    float x10, x11, x12, x13, y10, y11, y12, y13;
+    float r = cos(to_radians(dec));
+    float z = sin(to_radians(dec));
+    float x, y;
+    float x_octants[8], y_octants[8], z_octants[8];
+    float last_x_octants[8], last_y_octants[8], last_z_octants[8];
     bool first_iteration = true;
-    for(float xx=-0.8*r; xx<=0.8*r; xx+=(r/10))
+    
+    for(x=0.0f; x<1.0f; x+=0.177*r)
     {
-      x0 = x1 = xx;
-      y0 = sqrt((r*r)-(xx*xx));
-      if(isnan(y0)) y0=0.0f;
-      y1 = -y0;
-      z0 = sqrt(1.0f-(xx*xx)-(y0*y0));
-      if(isnan(z0)) z0=0.0f;
-      z3 = z2 = z1 = z0;
-      x2 = y0;
-      x3 = -y0;
-      y3 = y2 = x0;
+      y = sqrt((r*r)-(x*x));
+      if(isnan(y)) y=0.0f;
 
-      calculate_view_x_y_z(x0, y0, z0);
-      calculate_pixel_coords(x0, y0);
-      calculate_view_x_y_z(x1, y1, z1);
-      calculate_pixel_coords(x1, y1);
-      calculate_view_x_y_z(x2, y2, z2);
-      calculate_pixel_coords(x2, y2);
-      calculate_view_x_y_z(x3, y3, z3);
-      calculate_pixel_coords(x3, y3);
-      if(first_iteration)
-      {
-        first_iteration = false;
-      }
-      else
-      {
-        frame_buffer.draw_line(x10, y10, x0, y0, colour, 48);
-        frame_buffer.draw_line(x11, y11, x1, y1, colour, 48);
-        frame_buffer.draw_line(x12, y12, x2, y2, colour, 48);
-        frame_buffer.draw_line(x13, y13, x3, y3, colour, 48);
-      }
-      x10=x0; x11=x1; x12=x2; x13=x3; y10=y0; y11=y1; y12=y2; y13=y3;
-    }
-  }
+      x_octants[0] = x;
+      x_octants[1] = x;
+      x_octants[2] = -x;
+      x_octants[3] = -x;
+      x_octants[4] = y;
+      x_octants[5] = y;
+      x_octants[6] = -y;
+      x_octants[7] = -y;
 
+      y_octants[0] = y;
+      y_octants[1] = -y;
+      y_octants[2] = y;
+      y_octants[3] = -y;
+      y_octants[4] = x;
+      y_octants[5] = -x;
+      y_octants[6] = x;
+      y_octants[7] = -x;
 
-  float ra = 45;
-  float sin_ra = sin(to_radians(ra));
-  float cos_ra = sin(to_radians(ra));
-  float y, z;
-  float x_octants[8], y_octants[8], z_octants[8];
-  float last_x_octants[8], last_y_octants[8], last_z_octants[8];
-  bool first_iteration = true;
-  for(y=0.0f; y<1.0f; y+=0.05)
-  {
-    z = sqrt(1.0f-(y*y));
+      z_octants[0] = z;
+      z_octants[1] = z;
+      z_octants[2] = z;
+      z_octants[3] = z;
+      z_octants[4] = z;
+      z_octants[5] = z;
+      z_octants[6] = z;
+      z_octants[7] = z;
 
-    float yr = y*cos_ra;
-    float xr = y*sin_ra;
-
-    x_octants[0] = xr;
-    x_octants[1] = xr;
-    x_octants[2] = xr;
-    x_octants[3] = xr;
-    x_octants[4] = xr;
-    x_octants[5] = xr;
-    x_octants[6] = xr;
-    x_octants[7] = xr;
-
-    y_octants[0] = yr;
-    y_octants[1] = -yr;
-    y_octants[2] = yr;
-    y_octants[3] = -yr;
-    y_octants[4] = z;
-    y_octants[5] = -z;
-    y_octants[6] = z;
-    y_octants[7] = -z;
-
-    z_octants[0] = z;
-    z_octants[1] = z;
-    z_octants[2] = -z;
-    z_octants[3] = -z;
-    z_octants[4] = yr;
-    z_octants[5] = yr;
-    z_octants[6] = -yr;
-    z_octants[7] = -yr;
-
-    for(uint8_t octant = 0; octant<8; octant++)
-    {
-      calculate_view_x_y_z(x_octants[octant], y_octants[octant], z_octants[octant]);
-      calculate_pixel_coords(x_octants[octant], y_octants[octant]);
-      Serial.print("y: ");
-      Serial.println(y);
-      Serial.print("z: ");
-      Serial.println(z);
-    }
-
-    if(first_iteration)
-    {
-      first_iteration = false;
-    }
-    else
-    {
       for(uint8_t octant = 0; octant<8; octant++)
       {
-        if(last_z_octants[octant] > 0.0f && z_octants[octant] > 0.0f)
-        {
-          frame_buffer.draw_line(last_x_octants[octant], last_y_octants[octant], x_octants[octant], y_octants[octant], colour);
-        }
+        calculate_view_equatorial_x_y_z(x_octants[octant], y_octants[octant], z_octants[octant]);
+        calculate_pixel_coords(x_octants[octant], y_octants[octant]);
       }
-    }
 
-    for(uint8_t octant = 0; octant<8; octant++)
-    {
-      last_x_octants[octant] = x_octants[octant];
-      last_y_octants[octant] = y_octants[octant];
-      last_z_octants[octant] = z_octants[octant];
-    }
-
-    if(y > z) break;
-  }
-
-
-
-
-/*
-  for(float declination=0.0f; declination<=10.0f; declination+=10.0f)
-  {
-    float tan_az = tan(to_radians(declination));
-    float x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3;
-    float x10, x11, x12, x13, y10, y11, y12, y13;
-    bool first_iteration = true;
-    for(float xx=-1.0; xx<=1.0; xx+=0.01)
-    {
-      x0 = x1 = xx;
-      y0 = xx*tan_az;
-      if(isnan(y0)) y0=0.0f;
-      z0 = sqrt(1.0f-(xx*xx)-(y0*y0));
-      if(isnan(z0)) z0=0.0f;
-      y1 = y0;
-      z1 = -z0;
-      //x2 = y0;
-      //x3 = -y0;
-      //y3 = y2 = x0;
-
-      calculate_view_x_y_z(x0, y0, z0);
-      calculate_pixel_coords(x0, y0);
-      calculate_view_x_y_z(x1, y1, z1);
-      calculate_pixel_coords(x1, y1);
-      calculate_view_x_y_z(x2, y2, z2);
-      calculate_pixel_coords(x2, y2);
-      calculate_view_x_y_z(x3, y3, z3);
-      calculate_pixel_coords(x3, y3);
       if(first_iteration)
       {
         first_iteration = false;
       }
       else
       {
-        frame_buffer.draw_line(x10, y10, x0, y0, colour);
-        frame_buffer.draw_line(x11, y11, x1, y1, colour);
-        //frame_buffer.draw_line(x12, y12, x2, y2, colour);
-        //frame_buffer.draw_line(x13, y13, x3, y3, colour);
+        for(uint8_t octant = 0; octant<8; octant++)
+        {
+          if(last_z_octants[octant] > 0.0f && z_octants[octant] > 0.0f)
+          {
+            frame_buffer.draw_line(last_x_octants[octant], last_y_octants[octant], x_octants[octant], y_octants[octant], colour);
+          }
+        }
       }
-      x10=x0; x11=x1; x12=x2; x13=x3; y10=y0; y11=y1; y12=y2; y13=y3;
+
+      for(uint8_t octant = 0; octant<8; octant++)
+      {
+        last_x_octants[octant] = x_octants[octant];
+        last_y_octants[octant] = y_octants[octant];
+        last_z_octants[octant] = z_octants[octant];
+      }
+
+      if(x > y) break;
     }
   }
-*/
 
-/*
-  //plot lines of constant dec
-  for(int16_t dec = -90; dec < 90; dec += 10)
+  //plot lines of conastant right ascension
+  for(int ra = 0; ra<=170; ra+=10)
   {
-  
-    float x1, y1, z1, alt, az1;
-    ra_dec_to_alt_az(0.0f, dec, alt, az1);
-    calculate_view(alt, az1, x1, y1, z1);
-    calculate_pixel_coords(x1, y1);
-
-    for(uint16_t ra=5; ra <= 360; ra += 5)
+    float sin_ra = sin(to_radians(ra));
+    float cos_ra = cos(to_radians(ra));
+    float y, z;
+    float x_octants[8], y_octants[8], z_octants[8];
+    float last_x_octants[8], last_y_octants[8], last_z_octants[8];
+    bool first_iteration = true;
+    for(y=0.0f; y<1.0f; y+=0.177)
     {
-      float x2, y2, z2, az;
-      ra_dec_to_alt_az(ra, dec, alt, az);
-      calculate_view(alt, az, x2, y2, z2);
-      calculate_pixel_coords(x2, y2);
-  
-      //don't bother plotting line outside field of observer
-      bool draw = (z1 >= 0.0f) && (z2 >= 0.0f);
-      
-      //draw line between 2 points
-      if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 48);
+      z = sqrt(1.0f-(y*y));
 
-      x1 = x2;
-      y1 = y2;
-      z1 = z2;
-      az1 = az;
+      x_octants[0] = 0;
+      x_octants[1] = 0;
+      x_octants[2] = 0;
+      x_octants[3] = 0;
+      x_octants[4] = 0;
+      x_octants[5] = 0;
+      x_octants[6] = 0;
+      x_octants[7] = 0;
 
+      y_octants[0] = y;
+      y_octants[1] = -y;
+      y_octants[2] = y;
+      y_octants[3] = -y;
+      y_octants[4] = z;
+      y_octants[5] = -z;
+      y_octants[6] = z;
+      y_octants[7] = -z;
+
+      z_octants[0] = z;
+      z_octants[1] = z;
+      z_octants[2] = -z;
+      z_octants[3] = -z;
+      z_octants[4] = y;
+      z_octants[5] = y;
+      z_octants[6] = -y;
+      z_octants[7] = -y;
+
+      for(uint8_t octant = 0; octant<8; octant++)
+      {
+        float temp_y = y_octants[octant]*cos_ra;
+        float temp_x = y_octants[octant]*sin_ra;
+        y_octants[octant] = temp_y;
+        x_octants[octant] = temp_x;
+        calculate_view_equatorial_x_y_z(x_octants[octant], y_octants[octant], z_octants[octant]);
+        calculate_pixel_coords(x_octants[octant], y_octants[octant]);
+      }
+
+      if(first_iteration)
+      {
+        first_iteration = false;
+      }
+      else
+      {
+        for(uint8_t octant = 0; octant<8; octant++)
+        {
+          if(last_z_octants[octant] > 0.0f && z_octants[octant] > 0.0f)
+          {
+            frame_buffer.draw_line(last_x_octants[octant], last_y_octants[octant], x_octants[octant], y_octants[octant], colour);
+          }
+        }
+      }
+
+      for(uint8_t octant = 0; octant<8; octant++)
+      {
+        last_x_octants[octant] = x_octants[octant];
+        last_y_octants[octant] = y_octants[octant];
+        last_z_octants[octant] = z_octants[octant];
+      }
+
+      if(y > z) break;
     }
   }
-  */
-/*
-  //plot lines of constant ra
-  for(uint16_t ra = 0; ra < 360; ra += 10)
-  {
-
-    float x1, y1, z1, alt1, az;
-    ra_dec_to_alt_az(ra, -90, alt1, az);
-    calculate_view(alt1, az, x1, y1, z1);
-    calculate_pixel_coords(x1, y1);
-
-    for(int16_t dec=-85; dec <= 90; dec += 5)
-    {
-      float x2, y2, z2, alt;
-      ra_dec_to_alt_az(ra, dec, alt, az);
-      if(dec == 90u) az = 0;
-      calculate_view(alt, az, x2, y2, z2);
-      calculate_pixel_coords(x2, y2);
-  
-      //don't bother plotting line outside field of observer
-      bool draw = (z1 > 0.0f) && (z2 > 0.0f);
-      
-      //draw line between 2 points
-      if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 48);
-
-      x1 = x2;
-      y1 = y2;
-      z1 = z2;
-      alt1 = alt;
-
-    }
-  }
-*/
 }
 
 void c_planetarium :: plot_alt_az_grid(uint16_t colour)
 {
-
-   
-  //plot lines of constant altitude
-  for(int16_t alt = -90; alt <= 90; alt += 10)
+  //plot lines of conastant right declination
+  for(int alt = 0; alt<90; alt+=10)
   {
-    int16_t az1 = 0;
-    float x1, y1, z1;
-    calculate_view(alt, az1, x1, y1, z1);
-    calculate_pixel_coords(x1, y1);
-
-    for(uint16_t az=5; az <= 360; az += 5)
+    float r = cos(to_radians(alt));
+    float z = sin(to_radians(alt));
+    float x, y;
+    float x_octants[8], y_octants[8], z_octants[8];
+    float last_x_octants[8], last_y_octants[8], last_z_octants[8];
+    bool first_iteration = true;
+    
+    for(x=0.0f; x<1.0f; x+=0.177*r)
     {
-      float x2, y2, z2;
-      calculate_view(alt, az, x2, y2, z2);
-      calculate_pixel_coords(x2, y2);
-  
-      //don't bother plotting line outside field of observer
-      bool draw = (z1 >= 0.0f) && (z2 >= 0.0f);
-      
-      //draw line between 2 points
-      if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 16);
+      y = sqrt((r*r)-(x*x));
+      if(isnan(y)) y=0.0f;
 
-      x1 = x2;
-      y1 = y2;
-      z1 = z2;
-      az1 = az;
+      x_octants[0] = x;
+      x_octants[1] = x;
+      x_octants[2] = -x;
+      x_octants[3] = -x;
+      x_octants[4] = y;
+      x_octants[5] = y;
+      x_octants[6] = -y;
+      x_octants[7] = -y;
 
+      y_octants[0] = y;
+      y_octants[1] = -y;
+      y_octants[2] = y;
+      y_octants[3] = -y;
+      y_octants[4] = x;
+      y_octants[5] = -x;
+      y_octants[6] = x;
+      y_octants[7] = -x;
+
+      z_octants[0] = z;
+      z_octants[1] = z;
+      z_octants[2] = z;
+      z_octants[3] = z;
+      z_octants[4] = z;
+      z_octants[5] = z;
+      z_octants[6] = z;
+      z_octants[7] = z;
+
+      for(uint8_t octant = 0; octant<8; octant++)
+      {
+        calculate_view_horizontal_x_y_z(x_octants[octant], y_octants[octant], z_octants[octant]);
+        calculate_pixel_coords(x_octants[octant], y_octants[octant]);
+      }
+
+      if(first_iteration)
+      {
+        first_iteration = false;
+      }
+      else
+      {
+        for(uint8_t octant = 0; octant<8; octant++)
+        {
+          if(last_z_octants[octant] > 0.0f && z_octants[octant] > 0.0f)
+          {
+            frame_buffer.draw_line(last_x_octants[octant], last_y_octants[octant], x_octants[octant], y_octants[octant], colour);
+          }
+        }
+      }
+
+      for(uint8_t octant = 0; octant<8; octant++)
+      {
+        last_x_octants[octant] = x_octants[octant];
+        last_y_octants[octant] = y_octants[octant];
+        last_z_octants[octant] = z_octants[octant];
+      }
+
+      if(x > y) break;
     }
   }
 
-  //plot lines of constant azimuth
-  for(uint16_t az = 0; az < 360; az += 10)
+  //plot lines of conastant right ascension
+  for(int dec = 0; dec<=170; dec+=10)
   {
-    int16_t alt1 = -90;
-    float x1, y1, z1;
-    calculate_view(alt1, az, x1, y1, z1);
-    calculate_pixel_coords(x1, y1);
-
-    for(int16_t alt=-85; alt <= 90; alt += 5)
+    float sin_ra = sin(to_radians(dec));
+    float cos_ra = cos(to_radians(dec));
+    float y, z;
+    float x_octants[8], y_octants[8], z_octants[8];
+    float last_x_octants[8], last_y_octants[8], last_z_octants[8];
+    bool first_iteration = true;
+    for(y=0.0f; y<1.0f; y+=0.177)
     {
-      float x2, y2, z2;
-      calculate_view(alt, az, x2, y2, z2);
-      calculate_pixel_coords(x2, y2);
-  
-      //don't bother plotting line outside field of observer
-      bool draw = (z1 >= 0.0f) && (z2 >= 0.0f);
-      
-      //draw line between 2 points
-      if(draw) frame_buffer.draw_line(x1, y1, x2, y2, colour, 16);
+      z = sqrt(1.0f-(y*y));
 
-      x1 = x2;
-      y1 = y2;
-      z1 = z2;
-      alt1 = alt;
+      x_octants[0] = 0;
+      x_octants[1] = 0;
+      x_octants[2] = 0;
+      x_octants[3] = 0;
+      x_octants[4] = 0;
+      x_octants[5] = 0;
+      x_octants[6] = 0;
+      x_octants[7] = 0;
 
+      y_octants[0] = y;
+      y_octants[1] = -y;
+      y_octants[2] = y;
+      y_octants[3] = -y;
+      y_octants[4] = z;
+      y_octants[5] = -z;
+      y_octants[6] = z;
+      y_octants[7] = -z;
+
+      z_octants[0] = z;
+      z_octants[1] = z;
+      z_octants[2] = -z;
+      z_octants[3] = -z;
+      z_octants[4] = y;
+      z_octants[5] = y;
+      z_octants[6] = -y;
+      z_octants[7] = -y;
+
+      for(uint8_t octant = 0; octant<8; octant++)
+      {
+        float temp_y = y_octants[octant]*cos_ra;
+        float temp_x = y_octants[octant]*sin_ra;
+        y_octants[octant] = temp_y;
+        x_octants[octant] = temp_x;
+        calculate_view_horizontal_x_y_z(x_octants[octant], y_octants[octant], z_octants[octant]);
+        calculate_pixel_coords(x_octants[octant], y_octants[octant]);
+      }
+
+      if(first_iteration)
+      {
+        first_iteration = false;
+      }
+      else
+      {
+        for(uint8_t octant = 0; octant<8; octant++)
+        {
+          if(last_z_octants[octant] > 0.0f && z_octants[octant] > 0.0f)
+          {
+            frame_buffer.draw_line(last_x_octants[octant], last_y_octants[octant], x_octants[octant], y_octants[octant], colour);
+          }
+        }
+      }
+
+      for(uint8_t octant = 0; octant<8; octant++)
+      {
+        last_x_octants[octant] = x_octants[octant];
+        last_y_octants[octant] = y_octants[octant];
+        last_z_octants[octant] = z_octants[octant];
+      }
+
+      if(y > z) break;
     }
   }
   
@@ -589,26 +591,26 @@ int rand_range(int min, int max) {
 
 void c_planetarium :: plot_cardinal_points()
 {
-  
+  uint16_t colour = frame_buffer.colour565(255, 128, 0);
   for(uint16_t az=0; az < 4*360; az += 45)
   {
     float x, y, z;
-    calculate_view(0, az/4.0f, x, y, z);
+    calculate_view_alt_az(0, az/4.0f, x, y, z);
     calculate_pixel_coords(x, y);
 
     if(x >= 0 && x < width && y >= 0 && y < height && z > -0.01f)
     {
       switch(az){
-        case 4*0: frame_buffer.draw_char(x-6, y+5, font_16x12, 'N',    frame_buffer.colour565(255, 128, 0)); break;
-        case 4*45: frame_buffer.draw_string(x-3, y+5, font_8x5, "NE",  frame_buffer.colour565(255, 128, 0)); break;
-        case 4*90: frame_buffer.draw_char(x-6, y+5, font_16x12,'E',    frame_buffer.colour565(255, 128, 0)); break;
-        case 4*135: frame_buffer.draw_string(x-3, y+5, font_8x5, "SE", frame_buffer.colour565(255, 128, 0)); break;
-        case 4*180: frame_buffer.draw_char(x-6, y+5, font_16x12,'S',   frame_buffer.colour565(255, 128, 0)); break;
-        case 4*225: frame_buffer.draw_string(x-3, y+5, font_8x5, "SW", frame_buffer.colour565(255, 128, 0)); break;
-        case 4*270: frame_buffer.draw_char(x-6, y+5, font_16x12,'W',   frame_buffer.colour565(255, 128, 0)); break;
-        case 4*315: frame_buffer.draw_string(x-3, y+5, font_8x5, "NW", frame_buffer.colour565(255, 128, 0)); break;
+        case 4*0: frame_buffer.draw_char(x-6, y+5, font_16x12, 'N',    colour); break;
+        case 4*45: frame_buffer.draw_string(x-3, y+5, font_8x5, "NE",  colour); break;
+        case 4*90: frame_buffer.draw_char(x-6, y+5, font_16x12,'E',    colour); break;
+        case 4*135: frame_buffer.draw_string(x-3, y+5, font_8x5, "SE", colour); break;
+        case 4*180: frame_buffer.draw_char(x-6, y+5, font_16x12,'S',   colour); break;
+        case 4*225: frame_buffer.draw_string(x-3, y+5, font_8x5, "SW", colour); break;
+        case 4*270: frame_buffer.draw_char(x-6, y+5, font_16x12,'W',   colour); break;
+        case 4*315: frame_buffer.draw_string(x-3, y+5, font_8x5, "NW", colour); break;
       };
-      frame_buffer.fill_circle(x, y, 3, frame_buffer.colour565(255, 128, 0), 200);
+      frame_buffer.fill_circle(x, y, 3, colour, 200);
     }
   }
 }
@@ -617,6 +619,8 @@ void c_planetarium :: plot_cardinal_points()
 void c_planetarium :: plot_milky_way()
 {
   
+  uint16_t colour = frame_buffer.colour565(255, 255, 255);
+
   //plot galactic plane
   const float north_galactic_pole_ra = 192.25;
   const float north_galactic_pole_dec = 27.23;
@@ -639,7 +643,7 @@ void c_planetarium :: plot_milky_way()
     float x, y, z;
     float alt = to_degrees(atan(cos(to_radians(az-plane_direction))*tan(to_radians(plane_elevation))));
 
-    calculate_view(alt, az, x, y, z);
+    calculate_view_alt_az(alt, az, x, y, z);
     calculate_pixel_coords(x, y);
 
     if((x-last_x)*(x-last_x) + (y-last_y)*(y-last_y) < 100) continue;
@@ -651,7 +655,7 @@ void c_planetarium :: plot_milky_way()
       uint8_t n = rand_range(15, 30);
       for(uint8_t i=0; i<rand_range(100, 200); i++)
       {
-        frame_buffer.fill_circle(x+rand_range(-n, n), y+rand_range(-n, n), rand_range(1, 5), frame_buffer.colour565(255, 255, 255), 8);
+        frame_buffer.fill_circle(x+rand_range(-n, n), y+rand_range(-n, n), rand_range(1, 5), colour, 8);
       }
     }
   }
@@ -668,7 +672,7 @@ void c_planetarium :: plot_stars()
 
     float x, y, z;
     x = stars[idx].x; y = stars[idx].y; z = stars[idx].z;
-    calculate_view_x_y_z(x, y, z);
+    calculate_view_equatorial_x_y_z(x, y, z);
     calculate_pixel_coords(x, y);
 
     //don't bother plotting stars outside field of observer
@@ -676,7 +680,7 @@ void c_planetarium :: plot_stars()
     if(y>height) continue;
     if(x<0) continue;
     if(y<0) continue;
-    if(z < 0) continue;
+    if(z<0) continue;
 
 
     int8_t mag = stars[idx].mag;
@@ -685,23 +689,26 @@ void c_planetarium :: plot_stars()
     //t0 = micros();
     if(mag <= 1)
     {
-      frame_buffer.fill_circle(x, y, 6, star_colour(mk, 1), 9);
-      frame_buffer.fill_circle(x, y, 3, star_colour(mk, 3), 128);
-      frame_buffer.fill_circle(x, y, 2, star_colour(mk, 1));
+      //frame_buffer.fill_circle(x, y, 6, star_colour(mk), 8);
+      //frame_buffer.fill_circle(x, y, 3, star_colour(mk), 16);
+      //frame_buffer.fill_circle(x, y, 2, star_colour(mk), 128);
+      frame_buffer.fill_circle(x, y, 3, star_colour(mk), 64);
+      frame_buffer.set_pixel(x, y, star_colour(mk));
     }
     else if(mag <= 2)
     {
-      frame_buffer.fill_circle(x, y, 2, star_colour(mk, 3));
-      frame_buffer.fill_circle(x, y, 1, star_colour(mk, 1));
+      //frame_buffer.fill_circle(x, y, 2, star_colour(mk), 16);
+      frame_buffer.fill_circle(x, y, 1, star_colour(mk), 64);
+      frame_buffer.set_pixel(x, y, star_colour(mk));
     }
     else if(mag <= 3)
     {
-      frame_buffer.fill_circle(x, y, 1, star_colour(mk, 2));
-      frame_buffer.set_pixel(x, y, star_colour(mk, 1));
+      //frame_buffer.fill_circle(x, y, 1, star_colour(mk));
+      frame_buffer.set_pixel(x, y, star_colour(mk));
     }
     else
     {
-      frame_buffer.set_pixel(x, y, star_colour(mk, mag-3));
+      frame_buffer.set_pixel(x, y, star_colour(mk), (256 >> (mag-3)));
     }
     //Serial.print("plotting: ");
     //Serial.println(micros()-t0);
@@ -720,15 +727,10 @@ void c_planetarium :: plot_planets()
 
     double planet_x, planet_y, planet_z;
     compute_planet_position(julian_date, elements[idx], rates[idx], extra_terms[idx], planet_x, planet_y, planet_z);
-
     double ra, dec;
     convert_to_ra_dec(planet_x-earth_x, planet_y-earth_y, planet_z-earth_z, ra, dec);
-
-    float alt, az;
-    ra_dec_to_alt_az(ra, dec, alt, az);
-
     float x, y, z;
-    calculate_view(alt, az, x, y, z);
+    calculate_view_ra_dec(ra, dec, x, y, z);
 
     //don't bother plotting stars outside field of observer
     if(z < 0.0f) continue;
@@ -756,12 +758,8 @@ void c_planetarium :: plot_planets()
 
   double ra, dec;
   convert_to_ra_dec(-earth_x, -earth_y, -earth_z, ra, dec);
-
-  float alt, az;
-  ra_dec_to_alt_az(ra, dec, alt, az);
-
   float x, y, z;
-  calculate_view(alt, az, x, y, z);
+  calculate_view_ra_dec(ra, dec, x, y, z);
 
   //don't bother plotting stars outside field of observer
   if(z < 0.0f) return;
@@ -775,19 +773,17 @@ void c_planetarium :: plot_planets()
 
 void c_planetarium :: plot_constellation_names()
 {
+  uint16_t colour = frame_buffer.colour565(136, 247, 225);
   for(uint16_t idx=0; idx < num_constellations; ++idx)
   {
 
-    float alt, az;
-    ra_dec_to_alt_az(constellation_centres[idx].ra*15.0f, constellation_centres[idx].dec, alt, az);
-
     float x, y, z;
-    calculate_view(alt, az, x, y, z);
+    calculate_view_ra_dec(constellation_centres[idx].ra*15.0f, constellation_centres[idx].dec, x, y, z);
     calculate_pixel_coords(x, y);
 
     if(x > width || x < 0 || y > height || y < 0 || z < 0) continue;
 
-    frame_buffer.draw_string(x, y, font_8x5, constellation_names[idx], frame_buffer.colour565(136, 247, 225));
+    frame_buffer.draw_string(x, y, font_8x5, constellation_names[idx], colour);
     
   }
 }
@@ -830,7 +826,7 @@ void c_planetarium :: local_sidereal_time()
     
 }
 
-uint16_t c_planetarium :: star_colour(float mk, uint8_t mag)
+uint16_t c_planetarium :: star_colour(float mk)
 {
   uint8_t r, g, b;
 
@@ -856,7 +852,7 @@ uint16_t c_planetarium :: star_colour(float mk, uint8_t mag)
     g = 255 - (255*(mk-50)/20);
   }
 
-  return frame_buffer.colour565(r>>mag, g>>mag, b>>mag);
+  return frame_buffer.colour565(r, g, b);
 }
 
 //code to compute planet positions adapted from:
@@ -1036,7 +1032,7 @@ void c_planetarium :: plot_moon()
   ra_dec_to_alt_az(ra, dec, alt, az);
 
   float x, y, z;
-  calculate_view(alt, az, x, y, z);
+  calculate_view_alt_az(alt, az, x, y, z);
 
   if(abs(x) > 0.5f || abs(y) > 0.5f) return;
   if(z < 0) return;

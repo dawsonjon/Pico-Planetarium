@@ -3,8 +3,7 @@
 
 void c_frame_buffer :: set_pixel(uint16_t x, uint16_t y, uint16_t colour, uint16_t alpha)
 {
-  if(x>=m_width) return;
-  if(y>=m_height) return;
+  if(x>=m_width || y>=m_height) return;
   uint16_t old_colour = m_buffer[y*m_width + x];
   m_buffer[y*m_width + x] = alpha_blend(old_colour, colour, alpha);
 }
@@ -177,25 +176,29 @@ uint16_t c_frame_buffer::colour_scale(uint16_t colour, uint16_t alpha)
     return colour565(r, g, b);
 }
 
-uint16_t c_frame_buffer::alpha_blend(uint16_t old_colour, uint16_t colour, uint16_t alpha)
+uint16_t c_frame_buffer::alpha_blend(uint16_t bg, uint16_t fg, uint16_t alpha)
 {
-    if(alpha == 256) return colour;
+  if(alpha == 256) return fg;
 
-    uint8_t old_r, old_g, old_b;
-    colour_rgb(old_colour, old_r, old_g, old_b);
-    old_r=((uint16_t)old_r*(256-alpha))>>8;
-    old_g=((uint16_t)old_g*(256-alpha))>>8;
-    old_b=((uint16_t)old_b*(256-alpha))>>8;
-    uint8_t r, g, b;
-    colour_rgb(colour, r, g, b);
-    uint16_t blended_r = r; uint16_t blended_g = g; uint16_t blended_b = b;
-    blended_r *= alpha; blended_g *= alpha; blended_b *= alpha;
-    blended_r >>= 8; blended_g >>= 8; blended_b >>= 8;
-    blended_r += old_r; blended_g += old_g; blended_b += old_b;
-    blended_r = std::min(blended_r, (uint16_t)255);
-    blended_g = std::min(blended_g, (uint16_t)255);
-    blended_b = std::min(blended_b, (uint16_t)255);
-    return colour565(blended_r, blended_g, blended_b);
+  fg = (fg >> 8) | (fg << 8);
+  bg = (bg >> 8) | (bg << 8);
+
+  uint16_t r_bg = (bg >> 11) & 0x1F;   // Extract red (5 bits)
+  uint16_t g_bg = (bg >> 5) & 0x3F;    // Extract green (6 bits)
+  uint16_t b_bg = bg & 0x1F;           // Extract blue (5 bits)
+
+  uint16_t r_fg = (fg >> 11) & 0x1F;   // Extract red (5 bits)
+  uint16_t g_fg = (fg >> 5) & 0x3F;    // Extract green (6 bits)
+  uint16_t b_fg = fg & 0x1F;           // Extract blue (5 bits)
+
+  const uint8_t not_alpha = 256-alpha;
+  r_bg = ((r_bg*not_alpha) + (r_fg*alpha)) >> 8;
+  g_bg = ((g_bg*not_alpha) + (g_fg*alpha)) >> 8;
+  b_bg = ((b_bg*not_alpha) + (b_fg*alpha)) >> 8;
+
+  uint16_t result = (r_bg << 11) | (g_bg << 5) | b_bg;
+  return (result >> 8) | (result << 8);
+
 }
 
 void c_frame_buffer :: fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha)

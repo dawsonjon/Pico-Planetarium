@@ -61,9 +61,10 @@ class c_planetarium
   void ra_dec_to_alt_az(float ra, float dec, float &alt, float &az);
   void alt_az_to_ra_dec(float alt, float az, float &ra, float &dec);
   void build_rotation_matrix();
-  void calculate_view_x_y_z(float &x, float &y, float &z);
+  void calculate_view_equatorial_x_y_z(float &x, float &y, float &z);
+  void calculate_view_horizontal_x_y_z(float &x, float &y, float &z);
   void calculate_view_ra_dec(float ra, float dec, float &x, float &y, float &z);
-  void calculate_view(float alt, float az, float &x, float &y, float &z);
+  void calculate_view_alt_az(float alt, float az, float &x, float &y, float &z);
   void calculate_pixel_coords(float &x, float &y);
   void plot_constellations();
   void plot_planes();
@@ -78,7 +79,7 @@ class c_planetarium
   void plot_milky_way();
   float greenwich_sidereal_time();
   void local_sidereal_time();
-  uint16_t star_colour(float mk, uint8_t mag);
+  uint16_t star_colour(float mk);
 
   void matrix_multiply(float first_matrix[3][3], float second_matrix[3][3], float result_matrix[3][3]);
   void rotate_x_axis(float matrix[3][3], float theta);

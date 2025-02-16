@@ -46,8 +46,8 @@
 s_observer observer =
 {
   .field              = 90.0f,   //float field of view in degrees 
-  .alt                = 80.0f,   //float altidute in degrees
-  .az                 = 10.0f,  //float azimuth in degrees
+  .alt                = 45.0f,   //float altidute in degrees
+  .az                 = 180.0f,  //float azimuth in degrees
   .smallest_magnitude = 6.0f,    //float smallest magnitude star to plot
   
   .latitude           = 51.0,//float latitude - latitude in degrees
