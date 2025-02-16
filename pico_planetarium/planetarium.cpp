@@ -317,6 +317,87 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
     }
   }
 
+
+  float ra = 45;
+  float sin_ra = sin(to_radians(ra));
+  float cos_ra = sin(to_radians(ra));
+  float y, z;
+  float x_octants[8], y_octants[8], z_octants[8];
+  float last_x_octants[8], last_y_octants[8], last_z_octants[8];
+  bool first_iteration = true;
+  for(y=0.0f; y<1.0f; y+=0.05)
+  {
+    z = sqrt(1.0f-(y*y));
+
+    float yr = y*cos_ra;
+    float xr = y*sin_ra;
+
+    x_octants[0] = xr;
+    x_octants[1] = xr;
+    x_octants[2] = xr;
+    x_octants[3] = xr;
+    x_octants[4] = xr;
+    x_octants[5] = xr;
+    x_octants[6] = xr;
+    x_octants[7] = xr;
+
+    y_octants[0] = yr;
+    y_octants[1] = -yr;
+    y_octants[2] = yr;
+    y_octants[3] = -yr;
+    y_octants[4] = z;
+    y_octants[5] = -z;
+    y_octants[6] = z;
+    y_octants[7] = -z;
+
+    z_octants[0] = z;
+    z_octants[1] = z;
+    z_octants[2] = -z;
+    z_octants[3] = -z;
+    z_octants[4] = yr;
+    z_octants[5] = yr;
+    z_octants[6] = -yr;
+    z_octants[7] = -yr;
+
+    for(uint8_t octant = 0; octant<8; octant++)
+    {
+      calculate_view_x_y_z(x_octants[octant], y_octants[octant], z_octants[octant]);
+      calculate_pixel_coords(x_octants[octant], y_octants[octant]);
+      Serial.print("y: ");
+      Serial.println(y);
+      Serial.print("z: ");
+      Serial.println(z);
+    }
+
+    if(first_iteration)
+    {
+      first_iteration = false;
+    }
+    else
+    {
+      for(uint8_t octant = 0; octant<8; octant++)
+      {
+        if(last_z_octants[octant] > 0.0f && z_octants[octant] > 0.0f)
+        {
+          frame_buffer.draw_line(last_x_octants[octant], last_y_octants[octant], x_octants[octant], y_octants[octant], colour);
+        }
+      }
+    }
+
+    for(uint8_t octant = 0; octant<8; octant++)
+    {
+      last_x_octants[octant] = x_octants[octant];
+      last_y_octants[octant] = y_octants[octant];
+      last_z_octants[octant] = z_octants[octant];
+    }
+
+    if(y > z) break;
+  }
+
+
+
+
+/*
   for(float declination=0.0f; declination<=10.0f; declination+=10.0f)
   {
     float tan_az = tan(to_radians(declination));
@@ -358,7 +439,7 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
       x10=x0; x11=x1; x12=x2; x13=x3; y10=y0; y11=y1; y12=y2; y13=y3;
     }
   }
-
+*/
 
 /*
   //plot lines of constant dec
