@@ -4,8 +4,9 @@
 #include <cstdint>
 
 struct s_star {
-  float ra;
-  float dec;
+  float x;
+  float y;
+  float z;
   float mag;
   uint8_t mk;
 };

@@ -9,6 +9,8 @@
 #include "font_16x12.h"
 #include "images.h"
 
+#include "Arduino.h"
+
 //#include "pico/stdlib.h"
 
 const char * const planet_names[]={"Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","Sun"};
@@ -26,13 +28,14 @@ void c_planetarium :: update(s_observer o)
   const float theta = -(90-observer.alt);
   sin_theta = sin(to_radians(theta));
   cos_theta = cos(to_radians(theta));
+  build_rotation_matrix();
 
-  plot_milky_way(); //66ms
-  plot_alt_az_grid(frame_buffer.colour565(255, 255, 255)); //107ms
-  plot_ra_dec_grid(frame_buffer.colour565(255, 0, 128)); //243ms
-  plot_planes(); //38ms
-  plot_constellations(); //133ms
-  plot_stars(); //452ms
+  //plot_milky_way(); //155ms checked
+  plot_alt_az_grid(frame_buffer.colour565(255, 255, 255)); //49ms checked
+  plot_ra_dec_grid(frame_buffer.colour565(255, 0, 128)); //89ms checked
+  plot_planes(); //19ms checked
+  plot_constellations(); //5ms checked
+  plot_stars(); //44ms checked
   plot_planets(); //3ms
   plot_moon();
   plot_constellation_names(); //9ms
@@ -161,11 +164,45 @@ void c_planetarium :: calculate_view(float alt, float az, float &x, float &y, fl
 
 }
 
+void c_planetarium :: calculate_view_x_y_z(float &x, float &y, float &z)
+{
+
+  float new_x = rotation_matrix[0][0]*x+rotation_matrix[0][1]*y+rotation_matrix[0][2]*z;
+  float new_y = rotation_matrix[1][0]*x+rotation_matrix[1][1]*y+rotation_matrix[1][2]*z;
+  float new_z = rotation_matrix[2][0]*x+rotation_matrix[2][1]*y+rotation_matrix[2][2]*z;
+
+  //0 is centre of view, +0.5 is at the top, -0.5 is at the bottom
+  x = new_x * view_scale;
+  y = new_y * view_scale; 
+  z = new_z * view_scale;
+
+}
+
 void inline c_planetarium :: calculate_view_ra_dec(float ra, float dec, float &x, float &y, float &z)
 {
-  float alt, az;
-  ra_dec_to_alt_az(ra, dec, alt, az);
-  calculate_view(alt, az, x, y, z);
+  //float alt, az;
+  //ra_dec_to_alt_az(ra, dec, alt, az);
+  //calculate_view(alt, az, x, y, z);
+
+  //convert to x, y, z
+  const float sin_dec = sin(to_radians(dec));
+  const float cos_dec = cos(to_radians(dec));
+  const float sin_ra = sin(to_radians(-ra));
+  const float cos_ra = cos(to_radians(-ra));
+  x = cos_dec*-sin_ra;
+  y = cos_dec*cos_ra;
+  z = sin_dec;
+
+  float new_x = rotation_matrix[0][0]*x+rotation_matrix[0][1]*y+rotation_matrix[0][2]*z;
+  float new_y = rotation_matrix[1][0]*x+rotation_matrix[1][1]*y+rotation_matrix[1][2]*z;
+  float new_z = rotation_matrix[2][0]*x+rotation_matrix[2][1]*y+rotation_matrix[2][2]*z;
+
+  //0 is centre of view, +0.5 is at the top, -0.5 is at the bottom
+  x = new_x * view_scale;
+  y = new_y * view_scale; 
+  z = new_z * view_scale;
+
+
 }
 
 void c_planetarium :: calculate_pixel_coords(float &x, float &y)
@@ -236,6 +273,94 @@ void c_planetarium :: plot_plane(float pole_alt, float pole_az, uint16_t colour)
 void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
 {
 
+
+
+  for(float declination=0.0f; declination<=90.0f; declination+=10.0f)
+  {
+    float r = cos(to_radians(declination));
+    float x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3;
+    float x10, x11, x12, x13, y10, y11, y12, y13;
+    bool first_iteration = true;
+    for(float xx=-0.8*r; xx<=0.8*r; xx+=(r/10))
+    {
+      x0 = x1 = xx;
+      y0 = sqrt((r*r)-(xx*xx));
+      if(isnan(y0)) y0=0.0f;
+      y1 = -y0;
+      z0 = sqrt(1.0f-(xx*xx)-(y0*y0));
+      if(isnan(z0)) z0=0.0f;
+      z3 = z2 = z1 = z0;
+      x2 = y0;
+      x3 = -y0;
+      y3 = y2 = x0;
+
+      calculate_view_x_y_z(x0, y0, z0);
+      calculate_pixel_coords(x0, y0);
+      calculate_view_x_y_z(x1, y1, z1);
+      calculate_pixel_coords(x1, y1);
+      calculate_view_x_y_z(x2, y2, z2);
+      calculate_pixel_coords(x2, y2);
+      calculate_view_x_y_z(x3, y3, z3);
+      calculate_pixel_coords(x3, y3);
+      if(first_iteration)
+      {
+        first_iteration = false;
+      }
+      else
+      {
+        frame_buffer.draw_line(x10, y10, x0, y0, colour, 48);
+        frame_buffer.draw_line(x11, y11, x1, y1, colour, 48);
+        frame_buffer.draw_line(x12, y12, x2, y2, colour, 48);
+        frame_buffer.draw_line(x13, y13, x3, y3, colour, 48);
+      }
+      x10=x0; x11=x1; x12=x2; x13=x3; y10=y0; y11=y1; y12=y2; y13=y3;
+    }
+  }
+
+  for(float declination=0.0f; declination<=10.0f; declination+=10.0f)
+  {
+    float tan_az = tan(to_radians(declination));
+    float x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3;
+    float x10, x11, x12, x13, y10, y11, y12, y13;
+    bool first_iteration = true;
+    for(float xx=-1.0; xx<=1.0; xx+=0.01)
+    {
+      x0 = x1 = xx;
+      y0 = xx*tan_az;
+      if(isnan(y0)) y0=0.0f;
+      z0 = sqrt(1.0f-(xx*xx)-(y0*y0));
+      if(isnan(z0)) z0=0.0f;
+      y1 = y0;
+      z1 = -z0;
+      //x2 = y0;
+      //x3 = -y0;
+      //y3 = y2 = x0;
+
+      calculate_view_x_y_z(x0, y0, z0);
+      calculate_pixel_coords(x0, y0);
+      calculate_view_x_y_z(x1, y1, z1);
+      calculate_pixel_coords(x1, y1);
+      calculate_view_x_y_z(x2, y2, z2);
+      calculate_pixel_coords(x2, y2);
+      calculate_view_x_y_z(x3, y3, z3);
+      calculate_pixel_coords(x3, y3);
+      if(first_iteration)
+      {
+        first_iteration = false;
+      }
+      else
+      {
+        frame_buffer.draw_line(x10, y10, x0, y0, colour);
+        frame_buffer.draw_line(x11, y11, x1, y1, colour);
+        //frame_buffer.draw_line(x12, y12, x2, y2, colour);
+        //frame_buffer.draw_line(x13, y13, x3, y3, colour);
+      }
+      x10=x0; x11=x1; x12=x2; x13=x3; y10=y0; y11=y1; y12=y2; y13=y3;
+    }
+  }
+
+
+/*
   //plot lines of constant dec
   for(int16_t dec = -90; dec < 90; dec += 10)
   {
@@ -265,7 +390,8 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
 
     }
   }
-
+  */
+/*
   //plot lines of constant ra
   for(uint16_t ra = 0; ra < 360; ra += 10)
   {
@@ -296,12 +422,13 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
 
     }
   }
-
+*/
 }
 
 void c_planetarium :: plot_alt_az_grid(uint16_t colour)
 {
 
+   
   //plot lines of constant altitude
   for(int16_t alt = -90; alt <= 90; alt += 10)
   {
@@ -357,6 +484,7 @@ void c_planetarium :: plot_alt_az_grid(uint16_t colour)
 
     }
   }
+  
 }
 
 void c_planetarium :: plot_planes()
@@ -452,24 +580,15 @@ void c_planetarium :: plot_milky_way()
 void c_planetarium :: plot_stars()
 {
 
-  float view_ra, view_dec;
-  alt_az_to_ra_dec(observer.alt, observer.az, view_ra, view_dec);
-
   for(uint16_t idx=0; idx < num_stars; ++idx)
   {
 
     if(stars[idx].mag > observer.smallest_magnitude) continue;
-    const float dec_seperation = abs(view_dec - stars[idx].dec);
-    if(abs(view_dec - stars[idx].dec) > observer.field) continue;
-
-    //uint32_t t0 = micros();
 
     float x, y, z;
-    calculate_view_ra_dec(stars[idx].ra, stars[idx].dec, x, y, z);
+    x = stars[idx].x; y = stars[idx].y; z = stars[idx].z;
+    calculate_view_x_y_z(x, y, z);
     calculate_pixel_coords(x, y);
-
-    //Serial.print("calculating2: ");
-    //Serial.println(micros()-t0);
 
     //don't bother plotting stars outside field of observer
     if(x>width) continue;
@@ -845,3 +964,82 @@ void c_planetarium :: plot_moon()
   frame_buffer.draw_object(x, y, 10, (uint16_t*)moon);
   frame_buffer.draw_string(x+4, y-16, font_8x5, "Moon", frame_buffer.colour565(223, 136, 247));
 }
+
+void c_planetarium :: matrix_multiply(float first_matrix[3][3], float second_matrix[3][3], float result_matrix[3][3]) {
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            result_matrix[i][j] = 0;
+            for (int k = 0; k < 3; k++) {
+                result_matrix[i][j] += first_matrix[i][k] * second_matrix[k][j];
+            }
+        }
+    }
+}
+
+void c_planetarium :: rotate_x_axis(float matrix[3][3], float theta)
+{
+  matrix[0][0] = 1.0f;
+  matrix[0][1] = 0.0f;
+  matrix[0][2] = 0.0f;
+  matrix[1][0] = 0.0f;
+  matrix[1][1] = cos(to_radians(theta));
+  matrix[1][2] = -sin(to_radians(theta));
+  matrix[2][0] = 0.0f;
+  matrix[2][1] = sin(to_radians(theta));
+  matrix[2][2] = cos(to_radians(theta));
+
+}
+
+void c_planetarium :: rotate_z_axis(float matrix[3][3], float theta)
+{
+  matrix[0][0] = cos(to_radians(theta));
+  matrix[0][1] = -sin(to_radians(theta));
+  matrix[0][2] = 0.0f;
+  matrix[1][0] = sin(to_radians(theta));
+  matrix[1][1] = cos(to_radians(theta));
+  matrix[1][2] = 0.0f;
+  matrix[2][0] = 0.0f;
+  matrix[2][1] = 0.0f;
+  matrix[2][2] = 1.0f;
+}
+
+void c_planetarium :: build_rotation_matrix()
+{
+  //converting from alt-to az coordinates to screen
+  //coordinates involes a series of rotations in 2 planes
+
+  //Once the coordinates of the objects are in x, y, z format
+  //the screen coordinates can be calculated using a 3x3 rotation
+  //matrix. Building the matrix requires trig functions, but only
+  //needs to be done once for each update.
+
+  //Applying the rotation matrix needs to be done tens of thousands
+  //of times for each update, but only needs multiplies and adds.
+
+  //rotate celestial sphere around Earth's axis (z) depending on the
+  //local celestial time.
+  float lst_rotation[3][3];
+  rotate_z_axis(lst_rotation, lst);
+
+  //rotate around x (W-E) axis depending on the latitude so that
+  //the pole appears at the right altitude.
+  float lat_rotation[3][3];
+  rotate_x_axis(lat_rotation, 90-observer.latitude);
+
+  //rotate around zenith (z) axis depending on the observers view azimuth direction
+  float az_rotation[3][3];
+  rotate_z_axis(az_rotation, -observer.az);
+
+  //rotate around x (W-E) axis depending on the observers view altitude direction
+  float alt_rotation[3][3];
+  rotate_x_axis(alt_rotation, -(90-observer.alt));
+
+  //combine all the rotations into a single matrix
+  view_rotation_matrix[3][3];
+  matrix_multiply(alt_rotation, az_rotation, view_rotation_matrix);
+  float lat_rotation_matrix[3][3];
+  matrix_multiply(view_rotation_matrix, lat_rotation, lat_rotation_matrix);
+  matrix_multiply(lat_rotation_matrix, lst_rotation, rotation_matrix);
+
+}
+

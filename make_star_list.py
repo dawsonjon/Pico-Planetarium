@@ -48,7 +48,15 @@ def read_stars():
     except ValueError:
       continue
 
-    stars[number] = (ra, dec, constellation, magnitude, mk)
+    sin_dec = sin(radians(dec))
+    cos_dec = cos(radians(dec))
+    sin_ra = sin(radians(-ra))
+    cos_ra = cos(radians(-ra))
+    x = cos_dec*-sin_ra
+    y = cos_dec*cos_ra
+    z = sin_dec
+
+    stars[number] = (x, y, z, constellation, magnitude, mk)
 
   return stars
 
@@ -74,7 +82,7 @@ def scale_colour(mk):
 
 stars = read_stars().values()
 num_stars = len(stars)
-stars = ",\n".join(["{%.7ff, %.7ff, %.7ff, %u}"%(ra, dec, magnitude, scale_colour(col)) for ra, dec, _, magnitude, col in stars])
+stars = ",\n".join(["{%.7ff, %.7ff, %.7ff, %.7ff, %u}"%(x, y, z, magnitude, scale_colour(col)) for x, y, z, _, magnitude, col in stars])
 stars = """
 #include "stars.h"
 const uint16_t num_stars = %u;

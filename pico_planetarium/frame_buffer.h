@@ -17,6 +17,7 @@ class c_frame_buffer
   uint16_t alpha_blend(uint16_t old_colour, uint16_t colour, uint16_t alpha);
   void set_pixel(uint16_t x, uint16_t y, uint16_t colour, uint16_t alpha=256);
   void draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t colour, uint16_t alpha=256);
+  void draw_line_antialiased(int x0, int y0, int x1, int y1, uint16_t colour, uint16_t alpha=256); 
   void fill_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha=256);
   void draw_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha=256);
   void draw_string(uint16_t x, uint16_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t alpha=256);

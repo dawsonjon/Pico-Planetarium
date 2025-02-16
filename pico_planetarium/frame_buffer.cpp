@@ -9,6 +9,47 @@ void c_frame_buffer :: set_pixel(uint16_t x, uint16_t y, uint16_t colour, uint16
   m_buffer[y*m_width + x] = alpha_blend(old_colour, colour, alpha);
 }
 
+float ipart(float x) { return floorf(x); }
+float rfpart(float x) { return 1 - (x - floorf(x)); }
+float fpart(float x) { return x - floorf(x); }
+
+void c_frame_buffer :: draw_line_antialiased(int x0, int y0, int x1, int y1, uint16_t colour, uint16_t alpha) 
+{
+    bool one_point_in_view = 
+      (x0 >= 0 && x0 < m_width && y0 >= 0 && y0 < m_height) || 
+      (x1 >= 0 && x1 < m_width && y1 >= 0 && y1 < m_height);
+    if(!one_point_in_view) return;
+
+    int steep = fabs(y1 - y0) > fabs(x1 - x0);
+    if (steep) {
+        int temp;
+        temp = x0; x0 = y0; y0 = temp;
+        temp = x1; x1 = y1; y1 = temp;
+    }
+    if (x0 > x1) {
+        int temp;
+        temp = x0; x0 = x1; x1 = temp;
+        temp = y0; y0 = y1; y1 = temp;
+    }
+
+    float dx = x1 - x0;
+    float dy = y1 - y0;
+    float gradient = (dx == 0) ? 1 : dy / dx;
+    
+    float intery = y0 + gradient * (roundf(x0) - x0);
+
+    for (int x = roundf(x0); x <= roundf(x1); x++) {
+        if (steep) {
+            set_pixel(ipart(intery), x, colour_scale(colour, rfpart(intery)*256), alpha);
+            set_pixel(ipart(intery) + 1, x, colour_scale(colour, fpart(intery)*256), alpha);
+        } else {
+            set_pixel(x, ipart(intery), colour_scale(colour, rfpart(intery)*256), alpha);
+            set_pixel(x, ipart(intery) + 1, colour_scale(colour, fpart(intery)*256), alpha);
+        }
+      intery += gradient;
+    }
+}
+
 void c_frame_buffer :: draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t colour, uint16_t alpha)
 {
     bool one_point_in_view = 

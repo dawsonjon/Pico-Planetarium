@@ -53,11 +53,15 @@ class c_planetarium
   float sin_lat, cos_lat;
   float view_scale;
   float cos_theta, sin_theta;
+  float rotation_matrix[3][3];
+  float view_rotation_matrix[3][3];
 
   inline float to_radians(float x);
   inline float to_degrees(float x);
   void ra_dec_to_alt_az(float ra, float dec, float &alt, float &az);
   void alt_az_to_ra_dec(float alt, float az, float &ra, float &dec);
+  void build_rotation_matrix();
+  void calculate_view_x_y_z(float &x, float &y, float &z);
   void calculate_view_ra_dec(float ra, float dec, float &x, float &y, float &z);
   void calculate_view(float alt, float az, float &x, float &y, float &z);
   void calculate_pixel_coords(float &x, float &y);
@@ -75,6 +79,12 @@ class c_planetarium
   float greenwich_sidereal_time();
   void local_sidereal_time();
   uint16_t star_colour(float mk, uint8_t mag);
+
+  void matrix_multiply(float first_matrix[3][3], float second_matrix[3][3], float result_matrix[3][3]);
+  void rotate_x_axis(float matrix[3][3], float theta);
+  void rotate_z_axis(float matrix[3][3], float theta);
+
+
   float sind(float r);
   float cosd(float r);
 
