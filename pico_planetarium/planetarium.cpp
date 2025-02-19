@@ -4,6 +4,7 @@
 #include "stars.h"
 #include "constellations.h"
 #include "clines.h"
+#include "objects.h"
 #include "skyline.h"
 #include "font_8x5.h"
 #include "font_16x12.h"
@@ -39,6 +40,7 @@ void c_planetarium :: update(s_observer o)
   plot_planets(); //3ms
   plot_moon(); //2ms 
   plot_constellation_names(); //5ms
+  plot_objects();
 
   //obscure the area bellow the horizon
   //uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
@@ -185,7 +187,7 @@ void c_planetarium :: calculate_pixel_coords(float &x, float &y)
 
 void c_planetarium :: plot_constellations()
 {
-  uint16_t colour = frame_buffer.colour565(0, 0, 255);
+  uint16_t colour = frame_buffer.colour565(68, 123, 127);
   for(uint16_t idx=0; idx < num_clines; ++idx)
   {
     float x1 = clines[idx].x1;
@@ -668,22 +670,15 @@ void c_planetarium :: plot_stars()
     //t0 = micros();
     if(mag <= 1)
     {
-      //frame_buffer.fill_circle(x, y, 6, star_colour(mk), 8);
-      //frame_buffer.fill_circle(x, y, 3, star_colour(mk), 16);
-      //frame_buffer.fill_circle(x, y, 2, star_colour(mk), 128);
-      frame_buffer.fill_circle(x, y, 3, star_colour(mk), 64);
-      frame_buffer.set_pixel(x, y, star_colour(mk));
+      frame_buffer.fill_circle(x, y, 3, star_colour(mk));
     }
     else if(mag <= 2)
     {
-      //frame_buffer.fill_circle(x, y, 2, star_colour(mk), 16);
-      frame_buffer.fill_circle(x, y, 1, star_colour(mk), 64);
-      frame_buffer.set_pixel(x, y, star_colour(mk));
+      frame_buffer.fill_circle(x, y, 2, star_colour(mk));
     }
     else if(mag <= 3)
     {
-      //frame_buffer.fill_circle(x, y, 1, star_colour(mk));
-      frame_buffer.set_pixel(x, y, star_colour(mk));
+      frame_buffer.fill_circle(x, y, 1, star_colour(mk));
     }
     else
     {
@@ -767,6 +762,27 @@ void c_planetarium :: plot_constellation_names()
   }
 }
 
+void c_planetarium :: plot_objects()
+{
+  uint16_t colour = frame_buffer.colour565(0, 175, 201);
+  uint16_t text_colour = frame_buffer.colour565(101, 73, 100);
+  for(uint16_t idx=0; idx < num_objects; ++idx)
+  {
+
+    float x = objects[idx].x;
+    float y = objects[idx].y;
+    float z = objects[idx].z;
+    calculate_view_equatorial_x_y_z(x, y, z);
+    calculate_pixel_coords(x, y);
+
+    if(x > width || x < 0 || y > height || y < 0 || z < 0) continue;
+
+    frame_buffer.draw_circle(x, y, 2, colour);
+    frame_buffer.draw_string(x, y, font_8x5, objects[idx].name, text_colour);
+    
+  }
+}
+
 float c_planetarium :: greenwich_sidereal_time()
 {
     //Calculate Greenwich Mean Sidereal Time (GMST) given a UTC datetime.
@@ -810,25 +826,31 @@ uint16_t c_planetarium :: star_colour(float mk)
   uint8_t r, g, b;
 
   //O -> A (0-29) blue->white
-  if (mk < 29)
+  if (mk < 15)
   {
-    b = 255;
-    r = 255 * mk/30;
-    g = 255 * mk/30;
+    b = 250;
+    r = 180;
+    g = 180;
+  }
+  else if (mk < 29)
+  {
+    b = 242;
+    r = 198;
+    g = 204;
   }
   //F -> G (30-49) white->yellow
-  if (mk < 49)
+  else if (mk < 49)
   {
-    b = 255 - (255*(mk-30)/20);
-    r = 255;
-    g = 255;
+    b = 231;
+    r = 251;
+    g = 238;
   }
   //K -> M (50-59) yellow->red
   else
   {
-    b = 0;
+    b = 184;
     r = 255;
-    g = 255 - (255*(mk-50)/20);
+    g = 200;
   }
 
   return frame_buffer.colour565(r, g, b);
