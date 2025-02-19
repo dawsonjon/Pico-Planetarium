@@ -1,5 +1,6 @@
 #include "planetarium.h"
 #include "frame_buffer.h"
+#include "images.h"
 
 #include "ctime"
 #include "pico/stdlib.h"
@@ -45,7 +46,7 @@
 
 s_observer observer =
 {
-  .field              = 75.0f,   //float field of view in degrees 
+  .field              = 60.0f,   //float field of view in degrees 
   .alt                = 45.0f,   //float altidute in degrees
   .az                 = 180.0f,  //float azimuth in degrees
   .smallest_magnitude = 6.0f,    //float smallest magnitude star to plot
@@ -55,13 +56,11 @@ s_observer observer =
 };
 
 #if DISPLAY_TYPE == 0
-  #include "splash_320x240.h"
   uint8_t * splash_image = (uint8_t*)splash_320x240;
   const uint16_t width = 320u;
   const uint16_t height = 240u;
   uint16_t image[width][height];
 #else
-  #include "splash_480x320.h"
   uint8_t * splash_image = (uint8_t*)splash_480x320;
   const uint16_t width = 480u;
   const uint16_t height = 320u;
@@ -84,6 +83,7 @@ c_planetarium planetarium(frame_buffer, width, height);
 void setup() {
   Serial.begin(115200);
   configure_display();
+  display->_writeBlock(0, 0, width-1, height-1, splash_image, width*height*2);
   Serial.println("Pico Planetarium (C) Jonathan P Dawson 2025");
   Serial.println("github: https://github.com/dawsonjon/101Things");
   Serial.println("docs: 101-things.readthedocs.io");
@@ -122,9 +122,6 @@ void setup() {
     settimeofday(&tv, NULL);
   
   #endif
-
-  //Show splash screen
-  display->_writeBlock(0, 0, width-1, height-1, splash_image, width*height*2);
 }
 
 

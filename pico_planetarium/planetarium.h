@@ -71,6 +71,7 @@ class c_planetarium
   void plot_stars();
   void plot_planets();
   void plot_moon();
+  void plot_objects();
   void plot_constellation_names();
   void plot_cardinal_points();
   void plot_plane(float pole_alt, float pole_az, uint16_t colour);
