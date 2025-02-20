@@ -24,6 +24,7 @@ class c_frame_buffer
   void draw_char(uint16_t x, uint16_t y, const uint8_t *font, char c, uint16_t fg, uint16_t alpha=256);
   void fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha=256);
   void draw_object(uint16_t x, uint16_t y, uint16_t r, uint16_t* image);
+  void clear(uint16_t colour);
 
 
   c_frame_buffer(uint16_t *buffer, uint16_t width, uint16_t height)

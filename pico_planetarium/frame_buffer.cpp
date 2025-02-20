@@ -203,15 +203,19 @@ uint16_t c_frame_buffer::alpha_blend(uint16_t bg, uint16_t fg, uint16_t alpha)
 
 void c_frame_buffer :: fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha)
 {
-  std::fill_n(m_buffer, m_width*m_height, colour);
   //fill buffer with background colour
-  //for(uint16_t xx = 0; xx < w; xx++)
-  //{
-  //  for(uint16_t yy = 0; yy < h; yy++)
-  //  {
-  //    set_pixel(x+xx, y+yy, colour, alpha);
-  //  }
-  //}
+  for(uint16_t xx = 0; xx < w; xx++)
+  {
+    for(uint16_t yy = 0; yy < h; yy++)
+    {
+      set_pixel(x+xx, y+yy, colour, alpha);
+    }
+  }
+}
+
+void c_frame_buffer :: clear(uint16_t colour)
+{
+  std::fill_n(m_buffer, m_width*m_height, colour);
 }
 
 void c_frame_buffer :: draw_object(uint16_t x, uint16_t y, uint16_t r, uint16_t* image)

@@ -20,7 +20,7 @@ void c_planetarium :: update(s_observer o)
 {
   observer = o;
   local_sidereal_time();
-  frame_buffer.fill_rect(0, 0, width, height, frame_buffer.colour565(5, 0, 50));
+  frame_buffer.clear(frame_buffer.colour565(5, 0, 50));
 
   //calculate constants related to observer view
   sin_lat = sin(to_radians(observer.latitude));
@@ -77,18 +77,6 @@ void c_planetarium :: update(s_observer o)
   //}
 
   plot_cardinal_points();
-
-  char buffer[100];
-  snprintf(buffer, 100, "%0.1f\x7f,%0.1f\x7f", observer.latitude, observer.longitude);
-  frame_buffer.draw_string(0, height-8, font_8x5, buffer, frame_buffer.colour565(255, 255, 255));
-  snprintf(buffer, 100, "%04u-%02u-%02u %02u:%02u:%02u",
-    observer.year,
-    (uint16_t)observer.month,
-    (uint16_t)observer.day,
-    (uint16_t)observer.hour,
-    (uint16_t)observer.min,
-    (uint16_t)observer.sec);
-  frame_buffer.draw_string(width-(19*6), height-8, font_8x5, buffer, frame_buffer.colour565(255, 255, 255));
 }
 
 inline float c_planetarium :: to_radians(float x)
