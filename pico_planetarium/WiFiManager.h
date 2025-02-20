@@ -6,7 +6,6 @@
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>    // yes this is correct
 #include <EEPROM.h>         // simulated EEPROM: https://arduino-pico.readthedocs.io/en/latest/eeprom.html
-#include "CRC32.h"
 
 /**
  * @brief WiFiManager provides captive portal and network configuration management to allow devices
@@ -74,6 +73,11 @@ private:
     // html helpers
     void sendStandardHeaders() const;
     void getSignalStrength(String& cssStyle, const int32_t rssi) const;
+
+    uint32_t crc;
+    void reset_crc32();
+    void add_crc32(const uint8_t *data, size_t length);
+    uint32_t calc_crc32();
 
 // members
     State_t _currentState;              // current state of network configuration state machine

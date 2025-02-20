@@ -20,6 +20,8 @@ DNSServer dnsServer;
 WebServer server(80);
 
 static const char *_LOG_PREFIX = "[WiFiManager] ";
+static uint32_t crc32_table[256];
+#define POLYNOMIAL 0xEDB88320
 
 // AccessPoint network config
 const IPAddress WiFiManager::AP_IP = IPAddress(192,168,42,1);
@@ -39,6 +41,17 @@ WiFiManager::WiFiManager(const char *apName, const char *apPassword, bool serial
 
     _hero_img = ::hero_img;
     _title = "PicoW";
+
+    for (uint32_t i = 0; i < 256; i++) {
+        uint32_t crc = i;
+        for (uint32_t j = 0; j < 8; j++) {
+            if (crc & 1)
+                crc = (crc >> 1) ^ POLYNOMIAL;
+            else
+                crc >>= 1;
+        }
+        crc32_table[i] = crc;
+    }
 
 // FIXME: Is this in the correct location...
     EEPROM.begin(512);
@@ -401,10 +414,10 @@ bool WiFiManager::loadCredentials()
     wifi_credentials_t temp;
     EEPROM.get(0, temp);
 
-    CRC32 crc32;
-    crc32.add((const uint8_t*)temp._ssid, strlen(temp._ssid));
-    crc32.add((const uint8_t*)temp._pwd, strlen(temp._pwd));
-    uint32_t tempCRC = crc32.calc();
+    reset_crc32();
+    add_crc32((const uint8_t*)temp._ssid, strlen(temp._ssid));
+    add_crc32((const uint8_t*)temp._pwd, strlen(temp._pwd));
+    uint32_t tempCRC = calc_crc32();
 
     LOGF_DEBUG("Retrieved credentials for SSID: %s and CRC %d", temp._ssid, temp._crc);
 
@@ -429,13 +442,28 @@ void WiFiManager::saveCredentials()
     strncpy(temp._ssid, _wlanSSID, sizeof(_wlanSSID));
     strncpy(temp._pwd, _wlanPassword, sizeof(_wlanPassword));
 
-    CRC32 crc32;
-    crc32.add((const uint8_t*)_wlanSSID, strlen(_wlanSSID));
-    crc32.add((const uint8_t*)_wlanPassword, strlen(_wlanPassword));
-    temp._crc = crc32.calc();
+    reset_crc32();
+    add_crc32((const uint8_t*)_wlanSSID, strlen(_wlanSSID));
+    add_crc32((const uint8_t*)_wlanPassword, strlen(_wlanPassword));
+    temp._crc = calc_crc32();
 
     EEPROM.put(0, temp);
     EEPROM.commit();
 
     LOGF_DEBUG("Stored credentials for SSID: %s and CRC: %d", temp._ssid, temp._crc);
+}
+
+void WiFiManager::reset_crc32() {
+  crc = 0xFFFFFFFF;
+}
+
+void WiFiManager::add_crc32(const uint8_t *data, size_t length) {
+  for (size_t i = 0; i < length; i++) {
+    uint8_t byte = data[i];
+    crc = (crc >> 8) ^ crc32_table[(crc ^ byte) & 0xFF];
+  }
+}
+
+uint32_t WiFiManager::calc_crc32() {
+  return ~crc;
 }
