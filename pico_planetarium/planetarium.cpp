@@ -2,6 +2,7 @@
 #include <cstdio>
 #include "planetarium.h"
 #include "stars.h"
+#include "star_names.h"
 #include "constellations.h"
 #include "clines.h"
 #include "objects.h"
@@ -11,8 +12,6 @@
 #include "images.h"
 
 #include "Arduino.h"
-
-//#include "pico/stdlib.h"
 
 const char * const planet_names[]={"Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","Sun"};
 
@@ -42,6 +41,7 @@ void c_planetarium :: update(s_observer o, s_settings s)
   if(settings.moon) plot_moon(); //2ms 
   if(settings.constellation_names) plot_constellation_names(); //5ms
   if(settings.deep_sky_objects) plot_objects();
+  if(settings.star_names) plot_star_names();
 
   //obscure the area bellow the horizon
   //uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
@@ -774,6 +774,25 @@ void c_planetarium :: plot_objects()
 
     frame_buffer.draw_circle(x, y, 2, colour);
     if(settings.deep_sky_object_names) frame_buffer.draw_string(x, y, font_8x5, objects[idx].name, text_colour);
+    
+  }
+}
+
+void c_planetarium :: plot_star_names()
+{
+  uint16_t text_colour = frame_buffer.colour565(252, 165, 98);
+  for(uint16_t idx=0; idx < num_star_names; ++idx)
+  {
+
+    float x = star_names[idx].x;
+    float y = star_names[idx].y;
+    float z = star_names[idx].z;
+    calculate_view_equatorial_x_y_z(x, y, z);
+    calculate_pixel_coords(x, y);
+
+    if(x > width || x < 0 || y > height || y < 0 || z < 0) continue;
+
+    if(settings.star_names) frame_buffer.draw_string(x, y, font_8x5, star_names[idx].name, text_colour);
     
   }
 }
