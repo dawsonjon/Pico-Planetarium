@@ -25,6 +25,25 @@ struct s_observer
   uint8_t sec;
 };
 
+struct s_settings
+{
+  bool constellation_lines;
+  bool constellation_names;
+  bool star_names;
+  bool deep_sky_objects;
+  bool deep_sky_object_names;
+  bool planets;
+  bool planet_names;
+  bool moon;
+  bool moon_name;
+  bool sun;
+  bool sun_name;
+  bool celestial_equator;
+  bool ecliptic;
+  bool alt_az_grid;
+  bool ra_dec_grid;
+};
+
 struct s_keplarian {
   double a;
   double e;
@@ -48,6 +67,7 @@ extern const s_extra_terms extra_terms[];
 class c_planetarium
 {
   s_observer observer;
+  s_settings settings;
   float lst; //calculated from utc
   double julian_date; //calculated from utc
   float sin_lat, cos_lat;
@@ -101,7 +121,7 @@ class c_planetarium
 
   c_planetarium(c_frame_buffer & frame_buffer, uint16_t width, uint16_t height):frame_buffer(frame_buffer), width(width), height(height){} 
 
-  void update(s_observer observer);
+  void update(s_observer observer, s_settings settings);
 };
 
 #endif

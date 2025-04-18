@@ -201,6 +201,20 @@ uint16_t c_frame_buffer::alpha_blend(uint16_t bg, uint16_t fg, uint16_t alpha)
 
 }
 
+void c_frame_buffer :: draw_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha)
+{
+  for(uint16_t xx = 0; xx < w; xx++)
+  {
+    set_pixel(x+xx, y, colour, alpha);
+    set_pixel(x+xx, y+h, colour, alpha);
+  }
+  for(uint16_t yy = 0; yy < h; yy++)
+  {
+    set_pixel(x, y+yy, colour, alpha);
+    set_pixel(x+w, y+yy, colour, alpha);
+  }
+}
+
 void c_frame_buffer :: fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha)
 {
   //fill buffer with background colour

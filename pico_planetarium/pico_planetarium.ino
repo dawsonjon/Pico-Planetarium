@@ -10,6 +10,7 @@
 #include "ili934x.h"
 #include "font_8x5.h"
 #include "font_16x12.h"
+#include "button.h"
 
 //CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
@@ -56,6 +57,25 @@ s_observer observer =
   .longitude          = 0.0,  //float longitude - longitude in degrees
 };
 
+s_settings settings =
+{
+  .constellation_lines = true,
+  .constellation_names = true,
+  .star_names = true,
+  .deep_sky_objects = true,
+  .deep_sky_object_names = true,
+  .planets = true,
+  .planet_names = true,
+  .moon = true,
+  .moon_name = true,
+  .sun = true,
+  .sun_name = true,
+  .celestial_equator = true,
+  .ecliptic = true,
+  .alt_az_grid = true,
+  .ra_dec_grid = true,
+};
+
 #if DISPLAY_TYPE == 0
   uint8_t * splash_image = (uint8_t*)splash_320x240;
   const uint16_t width = 320u;
@@ -84,7 +104,6 @@ c_planetarium planetarium(frame_buffer, width, height);
 void setup() {
   Serial.begin(115200);
   configure_display();
-  configure_user_interface();
   display->_writeBlock(0, 0, width-1, height-1, splash_image, width*height*2);
   Serial.println("Pico Planetarium (C) Jonathan P Dawson 2025");
   Serial.println("github: https://github.com/dawsonjon/101Things");
@@ -93,6 +112,7 @@ void setup() {
   #if USE_NTP_TIME
   
     #if USE_WIFI_MANAGER
+      display->fillRect((width - 320)/2, (height-120)/2, 120, 320, COLOUR_BLACK);
       display->drawString((width - (18*13))/2, height/2-16, font_16x12, "Connecting to WIFI", COLOUR_WHITE, COLOUR_BLACK);
       display->drawString((width - (50*6))/2, height/2+8, font_8x5, "WIFI Setup: ap=PICO_PLANETARIUM, password=password", COLOUR_WHITE, COLOUR_BLACK);
 
@@ -126,6 +146,9 @@ void setup() {
     settimeofday(&tv, NULL);
   
   #endif
+
+  load_settings(settings);
+  load_observer(observer);
 }
 
 
@@ -151,8 +174,8 @@ void loop()
   observer.sec   = current_time->tm_sec;  
   
   uint32_t start = micros();
-  planetarium.update(observer);
-  user_interface(frame_buffer, observer, use_internet_time);
+  planetarium.update(observer, settings);
+  user_interface(frame_buffer, observer, settings, use_internet_time);
   display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)image, width*height*2);
   uint32_t elapsed = micros()-start;
   
@@ -178,51 +201,56 @@ void configure_display()
   display->clear();
 }
 
-const uint8_t button_up = 17;
-const uint8_t button_down = 20;
-const uint8_t button_right = 21;
-const uint8_t button_left = 22;
-
-void configure_user_interface()
-{
-  pinMode(17, INPUT_PULLUP);
-  pinMode(20, INPUT_PULLUP);
-  pinMode(21, INPUT_PULLUP);
-  pinMode(22, INPUT_PULLUP);
-}
+button button_up(17); 
+button button_down(20); 
+button button_right(21); 
+button button_left(22); 
 
 bool number_entry(uint8_t min, uint8_t max, int &value)
 {
-  if(digitalRead(button_down) == 0 && value > min){value--; return true;}
-  if(digitalRead(button_up) == 0 && value < max){value++; return true;}
+  if(button_down.is_pressed() || button_down.is_held() && value > min){value--; return true;}
+  if(button_up.is_pressed() || button_up.is_held() && value < max){value++; return true;}
   return false;
 }
 
 bool bool_entry(bool &value)
 {
-  if(digitalRead(button_down)==0){value=!value; return true;}
-  if(digitalRead(button_up)==0){value=!value; return true;}
+  if(button_down.is_pressed()){value=!value; return true;}
+  if(button_up.is_pressed()){value=!value; return true;}
   return false;
 }
 
 bool number_entry(float min, float max, float step, float &value)
 {
-  if(digitalRead(button_down) == 0) 
+  if(button_down.is_pressed()) 
   {
     value-=step;
     if(value < min) value = max;
     return true;
   }
-  if(digitalRead(button_up) == 0)
+  if(button_up.is_pressed())
   {
     value+=step;
     if(value > max) value = min;
     return true;
   } 
+  if(button_down.is_held()) 
+  {
+    value-=(step*10);
+    if(value < min) value = max;
+    return true;
+  }
+  if(button_up.is_held())
+  {
+    value+=(step*10);
+    if(value > max) value = min;
+    return true;
+  }
+
   return false;
 }
 
-void user_interface(c_frame_buffer &frame_buffer, s_observer &observer, bool &use_internet_time)
+void user_interface(c_frame_buffer &frame_buffer, s_observer &observer, s_settings &settings, bool &use_internet_time)
 {
   static uint8_t menu_item = 0;
   
@@ -232,36 +260,52 @@ void user_interface(c_frame_buffer &frame_buffer, s_observer &observer, bool &us
   const uint8_t az = 3;
   const uint8_t fov = 4;
   const uint8_t tmode = 5;
-  const uint16_t year = 6;
-  const uint8_t month = 7;
-  const uint8_t day = 8;
-  const uint8_t hour = 9;
-  const uint8_t min = 10;
-  const uint8_t second = 11;
+  const uint8_t menu = 6;
+  const uint16_t year = 7;
+  const uint8_t month = 8;
+  const uint8_t day = 9;
+  const uint8_t hour = 10;
+  const uint8_t min = 11;
+  const uint8_t second = 12;
 
-  if(digitalRead(button_left) == 0 && menu_item > 0) menu_item--;
-  if(digitalRead(button_right) == 0 && menu_item < second) menu_item++;
+  if(button_left.is_pressed() && menu_item > 0) menu_item--;
+  if(button_right.is_pressed() && menu_item < second) menu_item++;
 
   time_t now;
   time(&now);
   tm ct = *gmtime(&now); 
 
   bool time_changed=false;
+  static bool observer_changed = false;
+  static uint8_t timeout = 40;
   switch(menu_item)
   {
-    case lat: number_entry(-90.0f, 90.0f, 0.1f, observer.latitude); break;
-    case lon: number_entry(0.0f, 180.0f, 0.1f, observer.longitude); break;
-    case alt: number_entry(-90.0f, 90.0f, 1.0f, observer.alt); break;
-    case az:  number_entry(-180.0f, 180.0f, 1.0f, observer.az); break;
-    case fov: number_entry(0.0f, 180.0f, 1.0f, observer.field); break;
+    case lat: observer_changed |= number_entry(-90.0f, 90.0f, 0.1f, observer.latitude); break;
+    case lon: observer_changed |= number_entry(-180.0f, 180.0f, 0.1f, observer.longitude); break;
+    case alt: observer_changed |= number_entry(-90.0f, 90.0f, 1.0f, observer.alt); break;
+    case az:  observer_changed |= number_entry(0.0f, 360.0f, 1.0f, observer.az); break;
+    case fov: observer_changed |= number_entry(0.0f, 180.0f, 1.0f, observer.field); break;
     case tmode: bool_entry(use_internet_time); break;
+    case menu: if(button_up.is_pressed()) launch_menu(frame_buffer, observer, settings, use_internet_time); break;
     
-    case year:   time_changed = number_entry(100, 150, ct.tm_year); break;
-    case month:  time_changed = number_entry(0, 11, ct.tm_mon); break;
-    case day:    time_changed = number_entry(1, 31, ct.tm_mday); break;
-    case hour:   time_changed = number_entry(0, 23, ct.tm_hour); break;
-    case min:    time_changed = number_entry(0, 59, ct.tm_min); break;
-    case second: time_changed = number_entry(0, 59, ct.tm_sec); break;
+    case year:   time_changed |= number_entry(100, 150, ct.tm_year); break;
+    case month:  time_changed |= number_entry(0, 11, ct.tm_mon); break;
+    case day:    time_changed |= number_entry(1, 31, ct.tm_mday); break;
+    case hour:   time_changed |= number_entry(0, 23, ct.tm_hour); break;
+    case min:    time_changed |= number_entry(0, 59, ct.tm_min); break;
+    case second: time_changed |= number_entry(0, 59, ct.tm_sec); break;
+  }
+
+  //use a timeout for observer changes to avoid writing to flash too often
+  if(observer_changed)
+  {
+    if(timeout-- == 0)
+    {
+      timeout = 40;
+      observer_changed = false;
+      save_observer(observer);
+      Serial.println("writing observer to EEPROM");
+    }
   }
 
   if(!use_internet_time && time_changed)
@@ -304,13 +348,16 @@ void user_interface(c_frame_buffer &frame_buffer, s_observer &observer, bool &us
   snprintf(buffer, 100, "fov: %0.0f\x7f", observer.field);
   colour = menu_item==fov?active_colour:inactive_colour;
   frame_buffer.draw_string(144, height-20, font_8x5, buffer, colour);
-  
-  uint16_t x=width-(8*6);
 
-  snprintf(buffer, 100, "%02u", (uint16_t)observer.hour);
+  colour = menu_item==menu?active_colour:inactive_colour;
+  frame_buffer.draw_string(216, height-20, font_8x5, "Menu", colour);
+  
+  uint16_t x=width-(12*6);
+
+  snprintf(buffer, 100, "UTC %02u", (uint16_t)observer.hour);
   colour = menu_item==hour?active_colour:inactive_colour;
   frame_buffer.draw_string(x, height-20, font_8x5, buffer, colour);
-  x+=2*6;
+  x+=6*6;
   frame_buffer.draw_string(x, height-20, font_8x5, ":", inactive_colour);
   x+=6;
   snprintf(buffer, 100, "%02u", (uint16_t)observer.min);
@@ -340,4 +387,147 @@ void user_interface(c_frame_buffer &frame_buffer, s_observer &observer, bool &us
   colour = menu_item==day?active_colour:inactive_colour;
   frame_buffer.draw_string(x, height-10, font_8x5, buffer, colour);
 
+}
+
+void launch_menu(c_frame_buffer &frame_buffer, s_observer &observer, s_settings &settings, bool &use_internet_time)
+{
+  uint8_t menu_item = 0;
+  const uint8_t num_settings = 15;
+  const uint8_t num_menu_items = num_settings+2;
+  const uint8_t num_items_on_screen = 8;
+  uint8_t offset = 0;
+
+  bool settings_array[num_settings] = {
+    settings.constellation_lines,
+    settings.constellation_names,
+    settings.star_names,
+    settings.deep_sky_objects,
+    settings.deep_sky_object_names,
+    settings.planets,
+    settings.planet_names,
+    settings.moon,
+    settings.moon_name,
+    settings.sun,
+    settings.sun_name,
+    settings.celestial_equator,
+    settings.ecliptic,
+    settings.alt_az_grid,
+    settings.ra_dec_grid
+  };
+  const char* const menu_items[] = {
+      "Constellation Lines",
+      "Constellation Names",
+      "Star Names",
+      "Deep Sky Objects",
+      "Deep Sky Object Names",
+      "Planets",
+      "Planet Names",
+      "Moon",
+      "Moon Name",
+      "Sun",
+      "Sun Name",
+      "Celestial Equator",
+      "Ecliptic",
+      "ALT/AZ Grid",
+      "RA/DEC Grid",
+      "Accept",
+      "Cancel"
+  };
+
+  while(1)
+  {
+
+    frame_buffer.fill_rect((width-320)/2, (height-240)/2-5, 320, 240, 0);
+    frame_buffer.draw_string((width-(4*12))/2, (height-240)/2, font_16x12, "Menu", frame_buffer.colour565(0, 255, 128));
+    frame_buffer.draw_line((width-320)/2, (height-240)/2+30, (width-320)/2+320, (height-240)/2+30, frame_buffer.colour565(0, 255, 128));
+
+    for(uint8_t idx=0; idx < num_items_on_screen; ++idx)
+    {
+      const uint8_t menu_item_index = idx + offset;
+      
+
+      if(menu_item_index < num_settings)
+      {
+        uint16_t colour = menu_item == menu_item_index?frame_buffer.colour565(255, 0, 255):frame_buffer.colour565(128, 0, 128);
+        frame_buffer.draw_string((width-320)/2+3, 40 + ((height-240)/2) + ((idx)*25), font_16x12, menu_items[menu_item_index],  colour);
+        if(settings_array[menu_item_index]) frame_buffer.draw_char((width-320)/2+320-16, 40 + ((height-240)/2) + ((idx)*25), font_16x12, 'Y',  colour);
+        else frame_buffer.draw_char((width-320)/2+320-16, 40 + ((height-240)/2) + ((idx)*25), font_16x12, 'N',  colour);
+      }
+      else
+      {
+        uint16_t colour = menu_item == menu_item_index?frame_buffer.colour565(0, 255, 128):frame_buffer.colour565(0, 128, 64);
+        frame_buffer.draw_string((width-strlen(menu_items[menu_item_index])*12)/2, 40 + ((height-240)/2) + ((idx)*25), font_16x12, menu_items[menu_item_index],  colour);
+      }    
+    }
+
+    if(button_left.is_pressed() && menu_item > 0) menu_item--;
+    if(button_right.is_pressed() && menu_item < num_menu_items-1) menu_item++;
+    if(button_up.is_pressed() && menu_item < num_settings) settings_array[menu_item] = !settings_array[menu_item];
+    if(button_down.is_pressed() && menu_item < num_settings) settings_array[menu_item] = !settings_array[menu_item];
+    
+    if(menu_item < offset) offset--;
+    if(menu_item > offset+num_items_on_screen-1) offset++;
+
+    display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)image, width*height*2);
+
+    if(menu_item == num_menu_items-2 && (button_up.is_pressed()||button_down.is_pressed()))
+    {
+      settings.constellation_lines=settings_array[0];
+      settings.constellation_names=settings_array[1];
+      settings.star_names=settings_array[2];
+      settings.deep_sky_objects=settings_array[3];
+      settings.deep_sky_object_names=settings_array[4];
+      settings.planets=settings_array[5];
+      settings.planet_names=settings_array[6];
+      settings.moon=settings_array[7];
+      settings.moon_name=settings_array[8];
+      settings.sun=settings_array[9];
+      settings.sun_name=settings_array[10];
+      settings.celestial_equator=settings_array[11];
+      settings.ecliptic=settings_array[12];
+      settings.alt_az_grid=settings_array[13];
+      settings.ra_dec_grid=settings_array[14];
+
+      save_settings(settings);
+
+      return;//accept
+    } 
+    if(menu_item == num_menu_items-1 && (button_up.is_pressed()||button_down.is_pressed())) return;//cancel
+  }
+}
+
+void save_settings(s_settings settings)
+{
+  //save settings to EEPROM
+  EEPROM.put(260, settings);
+  uint32_t settings_stored = 0;
+  EEPROM.get(256, settings_stored);
+  if(settings_stored != 123) EEPROM.put(256, 123);
+  EEPROM.commit();
+}
+
+void load_settings(s_settings &settings)
+{
+  //read settings from EEPROM
+  uint32_t settings_stored = 0;
+  EEPROM.get(256, settings_stored);
+  if(settings_stored == 123) EEPROM.get(260, settings);
+}
+
+void save_observer(s_observer observer)
+{
+  //save settings to EEPROM
+  EEPROM.put(388, observer);
+  uint32_t observer_stored = 0;
+  EEPROM.get(384, observer_stored);
+  if(observer_stored != 123) EEPROM.put(384, 123);
+  EEPROM.commit();
+}
+
+void load_observer(s_observer &observer)
+{
+  //read settings from EEPROM
+  uint32_t observer_stored = 0;
+  EEPROM.get(384, observer_stored);
+  if(observer_stored == 123) EEPROM.get(388, observer);
 }

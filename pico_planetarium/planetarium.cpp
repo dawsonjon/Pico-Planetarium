@@ -16,9 +16,10 @@
 
 const char * const planet_names[]={"Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","Sun"};
 
-void c_planetarium :: update(s_observer o)
+void c_planetarium :: update(s_observer o, s_settings s)
 {
   observer = o;
+  settings = s;
   local_sidereal_time();
   frame_buffer.clear(frame_buffer.colour565(5, 0, 50));
 
@@ -32,15 +33,15 @@ void c_planetarium :: update(s_observer o)
   build_rotation_matrix();
 
   //plot_milky_way(); //155ms 
-  plot_alt_az_grid(frame_buffer.colour565(54, 50, 90)); //9ms 
-  plot_ra_dec_grid(frame_buffer.colour565(54, 0, 65)); //9ms 
+  if(settings.alt_az_grid) plot_alt_az_grid(frame_buffer.colour565(54, 50, 90)); //9ms 
+  if(settings.ra_dec_grid) plot_ra_dec_grid(frame_buffer.colour565(54, 0, 65)); //9ms 
   plot_planes(); //4ms 
-  plot_constellations(); //8ms 
+  if(settings.constellation_lines) plot_constellations(); //8ms 
   plot_stars(); //25ms 
-  plot_planets(); //3ms
-  plot_moon(); //2ms 
-  plot_constellation_names(); //5ms
-  plot_objects();
+  if(settings.planets) plot_planets(); //3ms
+  if(settings.moon) plot_moon(); //2ms 
+  if(settings.constellation_names) plot_constellation_names(); //5ms
+  if(settings.deep_sky_objects) plot_objects();
 
   //obscure the area bellow the horizon
   //uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
@@ -234,8 +235,8 @@ void c_planetarium :: plot_plane(float pole_alt, float pole_az, uint16_t colour)
 void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
 {
 
-  //plot lines of conastant right declination
-  for(int dec = 0; dec<90; dec+=10)
+  //plot lines of conastant declination
+  for(int dec = -80; dec<90; dec+=10)
   {
     float r = cos(to_radians(dec));
     float z = sin(to_radians(dec));
@@ -388,7 +389,7 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
 void c_planetarium :: plot_alt_az_grid(uint16_t colour)
 {
   //plot lines of conastant right declination
-  for(int alt = 0; alt<90; alt+=10)
+  for(int alt = -80; alt<90; alt+=10)
   {
     float r = cos(to_radians(alt));
     float z = sin(to_radians(alt));
@@ -541,16 +542,23 @@ void c_planetarium :: plot_alt_az_grid(uint16_t colour)
 
 void c_planetarium :: plot_planes()
 {
-  //plot celestial equator
-  float az, alt;
-  ra_dec_to_alt_az(90, 90, alt, az);
-  plot_plane(observer.latitude, 0, frame_buffer.colour565(3, 50, 153));
+  if(settings.celestial_equator)
+  {
+    //plot celestial equator
+    float az, alt;
+    ra_dec_to_alt_az(90, 90, alt, az);
+    plot_plane(observer.latitude, 0, frame_buffer.colour565(3, 50, 153));
+  }
 
-  //plot ecliptic
-  const float orbital_noth_pole_dec = 66.56;
-  const float orbital_noth_pole_ra = 270;
-  ra_dec_to_alt_az(orbital_noth_pole_ra, orbital_noth_pole_dec, alt, az);
-  plot_plane(alt, az, frame_buffer.colour565(135, 0, 57));
+  if(settings.ecliptic)
+  {
+    //plot ecliptic
+    float az, alt;
+    const float orbital_noth_pole_dec = 66.56;
+    const float orbital_noth_pole_ra = 270;
+    ra_dec_to_alt_az(orbital_noth_pole_ra, orbital_noth_pole_dec, alt, az);
+    plot_plane(alt, az, frame_buffer.colour565(135, 0, 57));
+  }
 
 }
 
@@ -655,7 +663,6 @@ void c_planetarium :: plot_stars()
     int8_t mag = stars[idx].mag;
     uint8_t mk = stars[idx].mk;
 
-    //t0 = micros();
     if(mag <= 1)
     {
       frame_buffer.fill_circle(x, y, 3, star_colour(mk));
@@ -672,9 +679,6 @@ void c_planetarium :: plot_stars()
     {
       frame_buffer.set_pixel(x, y, star_colour(mk), (256 >> (mag-3)));
     }
-    //Serial.print("plotting: ");
-    //Serial.println(micros()-t0);
-
   }
 }
 
@@ -714,23 +718,26 @@ void c_planetarium :: plot_planets()
       case 6: frame_buffer.draw_object(x, y, 4, (uint16_t*)uranus); break;
       case 7: frame_buffer.draw_object(x, y, 4, (uint16_t*)neptune); break;
     };
-    frame_buffer.draw_string(x+4, y-16, font_8x5, planet_names[idx], frame_buffer.colour565(223, 136, 247));
+    if(settings.planet_names) frame_buffer.draw_string(x+4, y-16, font_8x5, planet_names[idx], frame_buffer.colour565(223, 136, 247));
 
   }
 
-  double ra, dec;
-  convert_to_ra_dec(-earth_x, -earth_y, -earth_z, ra, dec);
-  float x, y, z;
-  calculate_view_ra_dec(ra, dec, x, y, z);
+  if(settings.sun)
+  {
+    double ra, dec;
+    convert_to_ra_dec(-earth_x, -earth_y, -earth_z, ra, dec);
+    float x, y, z;
+    calculate_view_ra_dec(ra, dec, x, y, z);
 
-  //don't bother plotting stars outside field of observer
-  if(z < 0.0f) return;
-  if(x*x + y*y > 0.5) return;
+    //don't bother plotting stars outside field of observer
+    if(z < 0.0f) return;
+    if(x*x + y*y > 0.5) return;
 
-  //get coordinated and magnitude of x
-  calculate_pixel_coords(x, y);
-  frame_buffer.draw_object(x, y, 10, (uint16_t*)sun);
-  frame_buffer.draw_string(x+4, y-16, font_8x5, "Sun", frame_buffer.colour565(223, 136, 247));
+    //get coordinated and magnitude of x
+    calculate_pixel_coords(x, y);
+    frame_buffer.draw_object(x, y, 10, (uint16_t*)sun);
+    if(settings.sun_name) frame_buffer.draw_string(x+4, y-16, font_8x5, "Sun", frame_buffer.colour565(223, 136, 247));
+  }
 }
 
 void c_planetarium :: plot_constellation_names()
@@ -766,7 +773,7 @@ void c_planetarium :: plot_objects()
     if(x > width || x < 0 || y > height || y < 0 || z < 0) continue;
 
     frame_buffer.draw_circle(x, y, 2, colour);
-    frame_buffer.draw_string(x, y, font_8x5, objects[idx].name, text_colour);
+    if(settings.deep_sky_object_names) frame_buffer.draw_string(x, y, font_8x5, objects[idx].name, text_colour);
     
   }
 }
@@ -1025,7 +1032,7 @@ void c_planetarium :: plot_moon()
   calculate_pixel_coords(x, y);
   
   frame_buffer.draw_object(x, y, 10, (uint16_t*)moon);
-  frame_buffer.draw_string(x+4, y-16, font_8x5, "Moon", frame_buffer.colour565(223, 136, 247));
+  if(settings.moon_name) frame_buffer.draw_string(x+4, y-16, font_8x5, "Moon", frame_buffer.colour565(223, 136, 247));
 }
 
 void c_planetarium :: matrix_multiply(float first_matrix[3][3], float second_matrix[3][3], float result_matrix[3][3]) {
