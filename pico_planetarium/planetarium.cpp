@@ -11,8 +11,6 @@
 #include "font_16x12.h"
 #include "images.h"
 
-#include "Arduino.h"
-
 const char * const planet_names[]={"Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","Sun"};
 
 void c_planetarium :: update(s_observer o, s_settings s)
@@ -44,38 +42,40 @@ void c_planetarium :: update(s_observer o, s_settings s)
   if(settings.star_names) plot_star_names();
 
   //obscure the area bellow the horizon
-  //uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
-  //uint16_t view_minor_radius = view_major_radius * sin(to_radians(observer.alt));
-  //const int a = view_major_radius;
-  //const int b = view_minor_radius;
+  uint16_t view_major_radius = height/(2*sin(to_radians(observer.field/2)));
+  uint16_t view_minor_radius = view_major_radius * sin(to_radians(observer.alt));
+  const int a = view_major_radius;
+  const int b = view_minor_radius;
 
 
   //11ms
   //draw skyline
-  //int max_y = observer.alt>89.0f?height/2:0;
-  //for (int y = -height/2; y <= max_y; y++) {
-  //  for (int x = 0; x <= width/2; x++) {
-  //    if (((int64_t)x * x) * ((int64_t)b * b) + ((int64_t)y * y) * ((int64_t)a * a) > ((int64_t)a * a) * ((int64_t)b * b)) {
-  //        frame_buffer.set_pixel(width/2 + x, height/2 - y, 0, 200);
-  //        frame_buffer.set_pixel(width/2 - x, height/2 - y, 0, 200);
-  //    }
-  //  }
-  //}
+  int max_y = observer.alt>89.0f?height/2:0;
+  for (int y = -height/2; y <= max_y; y++) {
+    for (int x = 0; x <= width/2; x++) {
+      if (((int64_t)x * x) * ((int64_t)b * b) + ((int64_t)y * y) * ((int64_t)a * a) > ((int64_t)a * a) * ((int64_t)b * b)) {
+          frame_buffer.set_pixel(width/2 + x, height/2 - y, 0, 128);
+          frame_buffer.set_pixel(width/2 - x, height/2 - y, 0, 128);
+      }
+    }
+  }
 
   //90ms
-  //int min_y = observer.alt>89.0f?-height/2:0;
-  //for (int y = min_y; y <= height/2; y++) {
-  //  for (int x = -width/2; x < width/2; x++) {
-  //    uint16_t from_x = 240 + (x*240/view_major_radius);
-  //    uint16_t from_y = 240 + (y*240/view_minor_radius);
-  //    if (((int64_t)x * x) * ((int64_t)b * b) + ((int64_t)y * y) * ((int64_t)a * a) < ((int64_t)a * a) * ((int64_t)b * b)) {
-        //if(from_x < 480 && from_y < 480 && skyline[from_x * 480 + from_y] != 0xffff)
-        //{
-  //        frame_buffer.set_pixel(width/2 + x, height/2 + y, 0, 200);
-        //}
-  //    }
-  //  }
-  //}
+  /*
+  int min_y = observer.alt>89.0f?-height/2:0;
+  for (int y = min_y; y <= height/2; y++) {
+    for (int x = -width/2; x < width/2; x++) {
+      uint16_t from_x = 240 + (x*240/view_major_radius);
+      uint16_t from_y = 240 + (y*240/view_minor_radius);
+      if (((int64_t)x * x) * ((int64_t)b * b) + ((int64_t)y * y) * ((int64_t)a * a) < ((int64_t)a * a) * ((int64_t)b * b)) {
+        if(from_x < 480 && from_y < 480 && skyline[from_x * 480 + from_y] != 0xffff)
+        {
+          frame_buffer.set_pixel(width/2 + x, height/2 + y, 0, 200);
+        }
+      }
+    }
+  }
+  */
 
   plot_cardinal_points();
 }
@@ -248,7 +248,7 @@ void c_planetarium :: plot_ra_dec_grid(uint16_t colour)
     for(x=0.0f; x<1.0f; x+=0.177*r)
     {
       y = sqrt((r*r)-(x*x));
-      if(isnan(y)) y=0.0f;
+      if(std::isnan(y)) y=0.0f;
 
       x_octants[0] = x;
       x_octants[1] = x;
@@ -401,7 +401,7 @@ void c_planetarium :: plot_alt_az_grid(uint16_t colour)
     for(x=0.0f; x<1.0f; x+=0.177*r)
     {
       y = sqrt((r*r)-(x*x));
-      if(isnan(y)) y=0.0f;
+      if(std::isnan(y)) y=0.0f;
 
       x_octants[0] = x;
       x_octants[1] = x;
@@ -687,7 +687,7 @@ void c_planetarium :: plot_planets()
   double earth_x, earth_y, earth_z;
   compute_planet_position(julian_date, elements[2], rates[2], extra_terms[2], earth_x, earth_y, earth_z);
 
-  for(uint16_t idx=0; idx < 9; ++idx)
+  for(uint16_t idx=0; idx < 8; ++idx)
   {
     if(idx == 2) continue;
 

@@ -1,0 +1,4 @@
+g++ main.cpp ../pico_planetarium/planetarium.cpp ../pico_planetarium/constellations.cpp ../pico_planetarium/star_names.cpp ../pico_planetarium/objects.cpp ../pico_planetarium/stars.cpp ../pico_planetarium/frame_buffer.cpp ../pico_planetarium/clines.cpp bmp_lib.cpp -o test
+rm -rf frame*
+./test
+ffmpeg -stream_loop 2 -framerate 24 -i frame_%03d.bmp -c:v libx264 -pix_fmt yuv420p output.mp4
