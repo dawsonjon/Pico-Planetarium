@@ -5,6 +5,7 @@
 #include "ctime"
 #include "pico/stdlib.h"
 #include "pico/util/datetime.h"
+#include "EEPROM.h"
 
 #include "hardware/spi.h"
 #include "ili934x.h"
@@ -155,7 +156,7 @@ void setup() {
 void loop()
 {
 
-  #ifdef USE_NTP_TIME
+  #if USE_NTP_TIME
   if(use_internet_time)
   {
     ntpTime.setTime();

@@ -37,8 +37,8 @@ int main()
   s_observer observer =
   {
     .field              = 90.0f,   //float field of view in degrees 
-    .alt                = 45.0f,   //float altidute in degrees
-    .az                 = 180.0f,  //float azimuth in degrees
+    .alt                = 30.0f,   //float altidute in degrees
+    .az                 = 45.0f,  //float azimuth in degrees
     .smallest_magnitude = 8.0f,    //float smallest magnitude star to plot
     
     .latitude           = 51.0,//float latitude - latitude in degrees
@@ -77,7 +77,7 @@ int main()
   uint16_t count = 0;
   for(uint8_t hour = 0; hour < 24; hour ++)
   {
-    for(uint8_t minute = 0; minute < 59; minute +=4)
+    for(uint8_t minute = 0; minute < 59; minute +=2)
     {
 
       observer.hour = hour;
