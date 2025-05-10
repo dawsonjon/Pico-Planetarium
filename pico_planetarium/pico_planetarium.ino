@@ -23,8 +23,8 @@
 #define PIN_DC   11
 #define SPI_PORT spi1
 
-#define ROTATION R0DEG
-//#define ROTATION R90DEG
+//#define ROTATION R0DEG
+#define ROTATION R90DEG
 //#define ROTATION R180DEG
 //#define ROTATION R270DEG
 //#define ROTATION MIRRORED0DEG
@@ -32,11 +32,16 @@
 //#define ROTATION MIRRORED180DEG
 //#define ROTATION MIRRORED270DEG
 
-#define INVERT_COLOURS false
-//#define INVERT_COLOURS true
+//#define INVERT_COLOURS false
+#define INVERT_COLOURS true
+
+#define INVERT_DISPLAY false
+//#define INVERT_DISPLAY true
 
 //#define DISPLAY_TYPE 0 //ILI934x 320x240 TFT DIsplay
-#define DISPLAY_TYPE 1 //ST7796 480x320 (Needs Pico2!)
+//#define DISPLAY_TYPE 1 //ILI934x (driver 2) 320x240 TFT DIsplay
+#define DISPLAY_TYPE 2 //ST7796 480x320 (Needs Pico2!)
+//#define DISPLAY_TYPE 3 //ILI9488 480x320 (Needs Pico2!)
 
 //On Pico 2W, use wifi to get the current time
 #define USE_NTP_TIME 1 //use credentials defined in ~/credentials.h
@@ -78,15 +83,29 @@ s_settings settings =
 };
 
 #if DISPLAY_TYPE == 0
-  uint8_t * splash_image = (uint8_t*)splash_320x240;
+  const uint16_t * splash_image = splash_320x240;
   const uint16_t width = 320u;
   const uint16_t height = 240u;
   uint16_t image[width][height];
-#else
-  uint8_t * splash_image = (uint8_t*)splash_480x320;
+  e_display_type display_type = ILI9341;
+#elif DISPLAY_TYPE == 1
+  const uint16_t * splash_image = splash_320x240;
+  const uint16_t width = 320u;
+  const uint16_t height = 240u;
+  uint16_t image[width][height];
+  e_display_type display_type = ILI9341_2;
+#elif DISPLAY_TYPE == 2
+  const uint16_t * splash_image = splash_480x320;
   const uint16_t width = 480u;
   const uint16_t height = 320u;
   uint16_t image[width][height];
+  e_display_type display_type = ST7796;
+#else
+  const uint16_t * splash_image = splash_480x320;
+  const uint16_t width = 480u;
+  const uint16_t height = 320u;
+  uint16_t image[width][height];
+  e_display_type display_type = ILI9488;
 #endif
 
 #if USE_NTP_TIME
@@ -105,7 +124,7 @@ c_planetarium planetarium(frame_buffer, width, height);
 void setup() {
   Serial.begin(115200);
   configure_display();
-  display->_writeBlock(0, 0, width-1, height-1, splash_image, width*height*2);
+  display->writeImage(0, 0, width, height, splash_image);
   Serial.println("Pico Planetarium (C) Jonathan P Dawson 2025");
   Serial.println("github: https://github.com/dawsonjon/101Things");
   Serial.println("docs: 101-things.readthedocs.io");
@@ -113,9 +132,9 @@ void setup() {
   #if USE_NTP_TIME
   
     #if USE_WIFI_MANAGER
-      display->fillRect((width - 320)/2, (height-120)/2, 120, 320, COLOUR_BLACK);
-      display->drawString((width - (18*13))/2, height/2-16, font_16x12, "Connecting to WIFI", COLOUR_WHITE, COLOUR_BLACK);
-      display->drawString((width - (50*6))/2, height/2+8, font_8x5, "WIFI Setup: ap=PICO_PLANETARIUM, password=password", COLOUR_WHITE, COLOUR_BLACK);
+      display->fillRoundedRect((width - 320)/2, (height-120)/2, 120, 320, 10, COLOUR_DARKGREY);
+      display->drawString((width - (18*13))/2, height/2-16, font_16x12, "Connecting to WIFI", COLOUR_WHITE, COLOUR_DARKGREY);
+      display->drawString((width - (50*6))/2, height/2+8, font_8x5, "WIFI Setup: ap=PICO_PLANETARIUM, password=password", COLOUR_WHITE, COLOUR_DARKGREY);
 
       String title("Pico Planetarium");
       String name("PICO_PLANETARIUM_PICO2W");
@@ -177,7 +196,7 @@ void loop()
   uint32_t start = micros();
   planetarium.update(observer, settings);
   user_interface(frame_buffer, observer, settings, use_internet_time);
-  display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)image, width*height*2);
+  display->writeImage(0, 0, width, height, (uint16_t*)image);
   uint32_t elapsed = micros()-start;
   
   //Serial.println(spi_get_baudrate(SPI_PORT));
@@ -195,9 +214,8 @@ void configure_display()
   gpio_set_dir(PIN_CS, GPIO_OUT);
   gpio_init(PIN_DC);
   gpio_set_dir(PIN_DC, GPIO_OUT);
-  display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, width, height, R0DEG, DISPLAY_TYPE);
-  display->setRotation(ROTATION, INVERT_COLOURS);
-  display->init();
+  display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, width, height);
+  display->init(ROTATION, INVERT_COLOURS, INVERT_DISPLAY, display_type);
   display->powerOn(true);
   display->clear();
 }
@@ -469,7 +487,7 @@ void launch_menu(c_frame_buffer &frame_buffer, s_observer &observer, s_settings 
     if(menu_item < offset) offset--;
     if(menu_item > offset+num_items_on_screen-1) offset++;
 
-    display->_writeBlock(0, 0, width-1, height-1, (uint8_t*)image, width*height*2);
+    display->writeImage(0, 0, width, height, (uint16_t*)image);
 
     if(menu_item == num_menu_items-2 && (button_up.is_pressed()||button_down.is_pressed()))
     {
