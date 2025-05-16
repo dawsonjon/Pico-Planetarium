@@ -38,15 +38,15 @@ int main()
   {
     .field              = 90.0f,   //float field of view in degrees 
     .alt                = 30.0f,   //float altidute in degrees
-    .az                 = 45.0f,  //float azimuth in degrees
+    .az                 = 180.0f,  //float azimuth in degrees
     .smallest_magnitude = 8.0f,    //float smallest magnitude star to plot
     
     .latitude           = 51.0,//float latitude - latitude in degrees
     .longitude          = 0.0,  //float longitude - longitude in degrees
 
     .year  = 2025,
-    .month = 4, 
-    .day   = 21,
+    .month = 5, 
+    .day   = 13,
     .hour  = 0, 
     .min   = 0, 
     .sec   = 0,  
@@ -56,19 +56,19 @@ int main()
   {
     .constellation_lines = true,
     .constellation_names = true,
-    .star_names = true,
-    .deep_sky_objects = true,
-    .deep_sky_object_names = true,
+    .star_names = false,
+    .deep_sky_objects = false,
+    .deep_sky_object_names = false,
     .planets = true,
-    .planet_names = true,
-    .moon = true,
-    .moon_name = true,
+    .planet_names = false,
+    .moon = false,
+    .moon_name = false,
     .sun = true,
-    .sun_name = true,
-    .celestial_equator = true,
+    .sun_name = false,
+    .celestial_equator = false,
     .ecliptic = true,
-    .alt_az_grid = true,
-    .ra_dec_grid = true,
+    .alt_az_grid = false,
+    .ra_dec_grid = false,
   };
 
   c_frame_buffer frame_buffer((uint16_t*)image, width, height);

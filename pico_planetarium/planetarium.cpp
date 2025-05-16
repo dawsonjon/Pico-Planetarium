@@ -954,6 +954,8 @@ void c_planetarium :: convert_to_ra_dec(double x, double y, double z, double &ra
     dec = to_degrees(dec);
 }
 
+//See https://www.celestialprogramming.com/planets_with_keplers_equation.html
+//https://ssd.jpl.nasa.gov/planets/approx_pos.html
 void c_planetarium :: compute_planet_position(double jd, s_keplarian elements, s_keplarian rates, s_extra_terms extra_terms, double &x, double &y, double&z){
 
     //Algorithm from Explanatory Supplement to the Astronomical Almanac ch8 P340
