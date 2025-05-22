@@ -1,7 +1,7 @@
 Planetarium for Raspberry Pi Pico
 ==================================
 
-.. image::  images/planetarium/thumbnail.png
+.. image::  images/thumbnail.png
   :target: https://youtu.be/9oXsnwg1oYE
 
 The Pi Pico Planetarium is a compact, low-cost astronomy viewer built around
